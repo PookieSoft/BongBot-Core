@@ -1,5 +1,5 @@
 // Config
-export { initCore, getResponsesDir, createConfig, validateRequiredConfig } from './config/index.js';
+export { default, getFilePath, validateRequiredConfig } from './config/index.js';
 
 // Helpers
 export { Caller } from './helpers/caller.js';
