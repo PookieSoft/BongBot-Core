@@ -7,7 +7,7 @@
     "type": "module",
     "scripts": {
         "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --json --coverage --outputFile=report.json --passWithNoTests --silent",
-        "prepare": "tsc && rm -rf dist/responses && cp -r src/responses dist/responses"
+        "prepare": "npx tsc && rm -rf dist/responses && cp -r src/responses dist/responses"
     },
     "peerDependencies": {
         "better-sqlite3": "^12.6.2",
