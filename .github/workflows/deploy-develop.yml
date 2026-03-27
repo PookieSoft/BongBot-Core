@@ -235,7 +235,7 @@ jobs:
         run: |
           # Simulate build validation (replace with actual build commands)
           echo "Validating build..."
-          npm run prepare
+          npm run build
           echo "Build validation successful!"
 
       # --- Steps for regular user PRs ---
