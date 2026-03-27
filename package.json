@@ -5,9 +5,16 @@
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
     "type": "module",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        }
+    },
     "scripts": {
+        "build": "tsc && rm -rf dist/responses && cp -r src/responses dist/responses",
         "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --json --coverage --outputFile=report.json --passWithNoTests --silent",
-        "prepare": "npx tsc && rm -rf dist/responses && cp -r src/responses dist/responses"
+        "prepare": "npm run build"
     },
     "peerDependencies": {
         "better-sqlite3": "^12.6.2",
