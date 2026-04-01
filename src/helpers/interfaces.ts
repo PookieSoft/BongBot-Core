@@ -1,10 +1,10 @@
 import type { ChatInputCommandInteraction, Client, Collection } from 'discord.js';
 
 export interface ExtendedClient extends Client {
-    version?: string;
-    commands?: Collection<string, any>;
-    logger?: Logger;
-    deploymentInfo?: GithubInfo;
+    version: string;
+    commands: Collection<string, any>;
+    logger: Logger;
+    deploymentInfo: GithubInfo;
 }
 
 export interface GithubBranchResponse {

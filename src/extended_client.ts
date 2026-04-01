@@ -4,7 +4,7 @@ import { GithubInfo, Logger } from './helpers/interfaces.js';
 export class ExtendedClient extends Client {
     // Force the logger to be present
     readonly logger: Logger; 
-    public commands: Collection<string, any> = new Collection();
+    readonly commands: Collection<string, any> = new Collection();
     readonly version: string;
     readonly deploymentInfo: GithubInfo;
 
