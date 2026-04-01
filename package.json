@@ -1,5 +1,5 @@
 {
-    "name": "bongbot-core",
+    "name": "@pookiesoft/bongbot-core",
     "version": "1.0.0",
     "description": "Shared core library for BongBot projects",
     "main": "./dist/index.js",
@@ -12,10 +12,19 @@
         },
         "./package.json": "./package.json"
     },
+    "publishConfig": {
+        "registry": "https://npm.pkg.github.com",
+        "access": "restricted"
+    },
+    "files": [
+        "dist",
+        "package.json"
+    ],
     "scripts": {
         "build": "tsc && node -e \"import('fs').then(f=>f.cpSync('src/responses','dist/responses',{recursive:true,force:true}))\"",
         "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --json --coverage --outputFile=report.json --passWithNoTests --silent",
-        "postinstall": "npm run build"
+        "postinstall": "npm run build || true",
+        "_postinstall_note": "TODO: Remove postinstall once all dependent repos have migrated to @pookiesoft/bongbot-core from GitHub Packages"
     },
     "peerDependencies": {
         "better-sqlite3": "^12.8.0",
