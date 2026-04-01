@@ -1,0 +1,72 @@
+name: 'Resolve Version'
+description: 'Determines version bump level from PR labels and resolves the next version tag'
+
+inputs:
+  labels:
+    description: 'Comma-separated list of PR label names'
+    required: false
+    default: ''
+  github-token:
+    description: 'GitHub token for tag action'
+    required: true
+
+outputs:
+  level:
+    description: 'Version bump level (major, minor, patch)'
+    value: ${{ steps.get_level.outputs.level }}
+  new_tag:
+    description: 'Next version tag (e.g. v1.3.0)'
+    value: ${{ steps.get_version.outputs.new_tag }}
+  version:
+    description: 'Next version without v prefix (e.g. 1.3.0)'
+    value: ${{ steps.strip_prefix.outputs.version }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Determine Version Bump Level
+      id: get_level
+      shell: bash
+      env:
+        PR_LABELS: ${{ inputs.labels }}
+      run: |
+        level=""
+        if [[ "$PR_LABELS" == *"major"* ]]; then
+          level="major"
+        elif [[ "$PR_LABELS" == *"minor"* ]]; then
+          level="minor"
+        elif [[ "$PR_LABELS" == *"patch"* ]]; then
+          level="patch"
+        fi
+
+        # Fall back to commit message if no label found
+        if [[ -z "$level" ]]; then
+          echo "No version label found. Checking commit message."
+          commit_message=$(git log -1 --pretty=%B)
+          if [[ "$commit_message" == *"[major]"* || "$commit_message" == *"major:"* ]]; then
+            level="major"
+          elif [[ "$commit_message" == *"[minor]"* || "$commit_message" == *"minor:"* ]]; then
+            level="minor"
+          else
+            level="patch"
+          fi
+        fi
+
+        echo "Version bump determined as: $level"
+        echo "level=$level" >> $GITHUB_OUTPUT
+
+    - name: Get next version (Dry Run)
+      id: get_version
+      uses: anothrNick/github-tag-action@1.75.0
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        DEFAULT_BUMP: ${{ steps.get_level.outputs.level }}
+        TAG_PREFIX: v
+        DRY_RUN: true
+
+    - name: Strip version prefix
+      id: strip_prefix
+      shell: bash
+      run: |
+        VERSION="${{ steps.get_version.outputs.new_tag }}"
+        echo "version=${VERSION#v}" >> $GITHUB_OUTPUT

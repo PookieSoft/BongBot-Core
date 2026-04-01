@@ -4,7 +4,7 @@ import type { ExtendedClient, GithubInfo, GithubBranchResponse, GithubTagRespons
 let apiResponse: GithubInfo | undefined;
 const timestamp = Math.floor(Date.now() / 1000);
 
-const getRepoInfoFromAPI = async (owner: string, repo: string) => {
+export const getRepoInfoFromAPI = async (owner: string, repo: string) => {
     const repoApiUrl = `https://api.github.com/repos/${owner}/${repo}`;
     const headers = { 'User-Agent': 'Node.js-Deploy-Script' };
 
@@ -25,6 +25,8 @@ const getRepoInfoFromAPI = async (owner: string, repo: string) => {
 
         return {
             repoUrl: `https://github.com/${owner}/${repo}`,
+            owner: owner,
+            repo: repo,
             branchName: defaultBranch,
             commitUrl: `https://github.com/${owner}/${repo}/commit/${shortHash}`,
             shortHash: shortHash,
@@ -35,6 +37,8 @@ const getRepoInfoFromAPI = async (owner: string, repo: string) => {
         console.warn(`Warning: Could not retrieve info from GitHub API. ${error.message}`);
         return {
             repoUrl: `https://github.com/${owner}/${repo}`,
+            owner: owner,
+            repo: repo,
             branchName: 'N/A',
             commitUrl: `https://github.com/${owner}/${repo}`,
             shortHash: 'N/A',
@@ -44,21 +48,19 @@ const getRepoInfoFromAPI = async (owner: string, repo: string) => {
     }
 };
 
-export const generateCard = async (bot: ExtendedClient, options: { repoOwner: string; repoName: string }) => {
-    const { repoOwner, repoName } = options;
-    if (!apiResponse) { apiResponse = await getRepoInfoFromAPI(repoOwner, repoName); }
-    if (!bot.version) { bot.version = apiResponse.tag; }
+export const generateCard = async (bot: ExtendedClient) => {
+    const info = bot.deploymentInfo!;
     return new EmbedBuilder()
         .setTitle('🤖 BongBot Info Card')
         .setColor(Colors.Purple)
         .setThumbnail(bot.user?.displayAvatarURL() || null)
-        .setDescription(`**Latest Commit on \`${apiResponse.branchName}\`:**\n>>> [${apiResponse.shortHash} - ${apiResponse.commitMessage}](${apiResponse.commitUrl})`)
+        .setDescription(`**Latest Commit on \`${info.branchName}\`:**\n>>> [${info.shortHash} - ${info.commitMessage}](${info.commitUrl})`)
         .addFields(
-            { name: '📂 Repository', value: `[${repoOwner}/${repoName}](${apiResponse.repoUrl})`, inline: false },
+            { name: '📂 Repository', value: `[${info.owner}/${info.repo}](${info.repoUrl})`, inline: false },
             { name: '⏱️ Last Started', value: `<t:${timestamp}:f>`, inline: true },
             { name: '📦 Node.js', value: `${process.versions.node}`, inline: true },
             { name: '📚 Library', value: 'discord.js', inline: true }
         )
-        .setFooter({ text: `BongBot • ${process.env.ENV === 'prod' ? apiResponse.tag : 'dev build' }`, iconURL: bot.user?.displayAvatarURL() })
+        .setFooter({ text: `BongBot • ${process.env.ENV === 'prod' ? info.tag : 'dev build' }`, iconURL: bot.user?.displayAvatarURL() })
         .setTimestamp();
 }

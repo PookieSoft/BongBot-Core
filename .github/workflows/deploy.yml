@@ -41,6 +41,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          slug: PookieSoft/BongBot-Core
           file: ./coverage/lcov.info
           flags: production
           name: production-coverage
@@ -79,54 +80,17 @@ jobs:
             echo "labels=" >> $GITHUB_OUTPUT
           fi
 
-      - name: Determine Version Bump Level
-        id: get_level
-        env:
-          PR_LABELS: ${{ steps.find_pr.outputs.labels }}
-        run: |
-          level=""
-          # Check PR labels first
-          if [[ -n "${{ steps.find_pr.outputs.number }}" ]]; then
-            echo "Found PR #${{ steps.find_pr.outputs.number }}. Checking labels: $PR_LABELS"
-            if [[ "$PR_LABELS" == *"major"* ]]; then
-              level="major"
-            elif [[ "$PR_LABELS" == *"minor"* ]]; then
-              level="minor"
-            elif [[ "$PR_LABELS" == *"patch"* ]]; then
-              level="patch"
-            fi
-          fi
-
-          # If no level from labels, check commit message as a fallback
-          if [[ -z "$level" ]]; then
-            echo "No version label found on PR, or no PR found. Checking commit message."
-            commit_message=$(git log -1 --pretty=%B)
-            if [[ "$commit_message" == *"[major]"* || "$commit_message" == *"major:"* ]]; then
-              level="major"
-            elif [[ "$commit_message" == *"[minor]"* || "$commit_message" == *"minor:"* ]]; then
-              level="minor"
-            else
-              # Default to patch if no other indicator is found
-              level="patch"
-            fi
-          fi
-          
-          echo "Version bump determined as: $level"
-          echo "level=$level" >> $GITHUB_OUTPUT
-
-      - name: Get next version (Dry Run)
-        id: get_version
-        uses: anothrNick/github-tag-action@1.75.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DEFAULT_BUMP: ${{ steps.get_level.outputs.level }}
-          TAG_PREFIX: v
-          DRY_RUN: true
+      - name: Resolve Version
+        id: version
+        uses: ./.github/actions/resolve-version
+        with:
+          labels: ${{ steps.find_pr.outputs.labels }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and version package
         run: |
           npm run build
-          npm version ${{ steps.get_version.outputs.new_tag }} --no-git-tag-version
+          npm version ${{ steps.version.outputs.new_tag }} --no-git-tag-version
 
       - name: Publish to GitHub Packages
         run: npm publish
@@ -138,7 +102,7 @@ jobs:
         uses: anothrNick/github-tag-action@1.75.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DEFAULT_BUMP: ${{ steps.get_level.outputs.level }}
+          DEFAULT_BUMP: ${{ steps.version.outputs.level }}
           TAG_PREFIX: v
 
       - name: Create GitHub Release
@@ -147,8 +111,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.get_version.outputs.new_tag }}
-          release_name: Release ${{ steps.get_version.outputs.new_tag }}
+          tag_name: ${{ steps.version.outputs.new_tag }}
+          release_name: Release ${{ steps.version.outputs.new_tag }}
           body: |
             ${{ github.event.head_commit.message }}
           draft: false

@@ -14,11 +14,13 @@ jobs:
     permissions:
       checks: write
       pull-requests: write
+      packages: write
 
     steps:
-      # Checkout the code
       - name: Checkout Code
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       # --- NEW STEP TO VALIDATE LABELS ---
       - name: Check for Version Label
@@ -231,12 +233,31 @@ jobs:
             echo "report=❌ Coverage files not found" >> $GITHUB_OUTPUT
           fi
 
-      - name: Validate Build
+      - name: Resolve Version
+        id: version
+        uses: ./.github/actions/resolve-version
+        with:
+          labels: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js for GitHub Packages
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@pookiesoft'
+
+      - name: Build and Publish Dev Package
+        id: dev_publish
         run: |
-          # Simulate build validation (replace with actual build commands)
-          echo "Validating build..."
           npm run build
-          echo "Build validation successful!"
+          DEV_VERSION="${{ steps.version.outputs.version }}-beta.${{ github.event.pull_request.number }}.${{ github.run_number }}"
+          npm version "$DEV_VERSION" --no-git-tag-version
+          npm publish --tag "pr-${{ github.event.pull_request.number }}.${{ github.run_number }}"
+          echo "version=$DEV_VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$DEV_VERSION" >> $GITHUB_OUTPUT
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # --- Steps for regular user PRs ---
       - name: Create New Comment
@@ -246,7 +267,8 @@ jobs:
           body: |
             **BongBot Core Validated** 🚀
 
-            - **Tag:** `pr-${{ github.event.pull_request.number }}`
+            - **Dev Package:** `npm install @pookiesoft/bongbot-core@${{ steps.dev_publish.outputs.tag }}`
+            - **Version:** `${{ steps.dev_publish.outputs.version }}`
 
             <details>
             <summary>Coverage Report (click to expand)</summary>

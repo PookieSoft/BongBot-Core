@@ -3,6 +3,8 @@ import type { ChatInputCommandInteraction, Client, Collection } from 'discord.js
 export interface ExtendedClient extends Client {
     version?: string;
     commands?: Collection<string, any>;
+    logger?: Logger;
+    deploymentInfo?: GithubInfo;
 }
 
 export interface GithubBranchResponse {
@@ -20,6 +22,8 @@ export interface GithubTagResponse {
 
 export interface GithubInfo {
     repoUrl: string;
+    owner: string;
+    repo: string;
     branchName: string;
     commitUrl: string;
     shortHash: string;
@@ -33,3 +37,4 @@ export interface Logger {
     error(error: Error, interaction?: ChatInputCommandInteraction): void;
     close?(): void;
 }
+
