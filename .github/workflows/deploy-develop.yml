@@ -253,7 +253,7 @@ jobs:
           npm run build
           DEV_VERSION="${{ steps.version.outputs.version }}-beta.${{ github.event.pull_request.number }}.${{ github.run_number }}"
           npm version "$DEV_VERSION" --no-git-tag-version
-          npm publish --tag "$DEV_VERSION"
+          npm publish --tag "pr-${{ github.event.pull_request.number }}.${{ github.run_number }}"
           echo "version=$DEV_VERSION" >> $GITHUB_OUTPUT
           echo "tag=$DEV_VERSION" >> $GITHUB_OUTPUT
         env:
