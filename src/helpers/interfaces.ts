@@ -38,11 +38,3 @@ export interface Logger {
     close?(): void;
 }
 
-export interface GithubInfo { 
-    repoUrl: string; 
-    branchName: string; 
-    commitUrl: string; 
-    shortHash: string; 
-    commitMessage: string; 
-    tag: string 
-};

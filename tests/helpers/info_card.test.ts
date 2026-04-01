@@ -1,7 +1,7 @@
 import { jest, describe, test, expect, beforeEach } from '@jest/globals';
 import { http, HttpResponse } from 'msw';
 import { setupStandardTestEnvironment, server } from '../utils/testSetup.js';
-import type { ExtendedClient } from '../../src/helpers/interfaces.js';
+import type { ExtendedClient, GithubInfo } from '../../src/helpers/interfaces.js';
 
 // Setup MSW server and standard test cleanup
 setupStandardTestEnvironment();
@@ -79,14 +79,26 @@ jest.unstable_mockModule('discord.js', () => ({
 // Import after mocks are set up
 const infoCard = await import('../../src/helpers/info_card.js');
 
-describe('infoCard helper', () => {
-    const mockBot = {
-        user: {
-            displayAvatarURL: jest.fn(() => 'http://example.com/bot_avatar.jpg'),
-        },
-        version: undefined
-    } as unknown as ExtendedClient;
+const mockDeploymentInfo: GithubInfo = {
+    repoUrl: 'https://github.com/Mirasii/BongBot',
+    owner: 'Mirasii',
+    repo: 'BongBot',
+    branchName: 'main',
+    commitUrl: 'https://github.com/Mirasii/BongBot/commit/abc1234',
+    shortHash: 'abc1234',
+    commitMessage: 'Test commit',
+    tag: 'v1.0.0'
+};
 
+const createMockBot = (overrides?: Partial<{ deploymentInfo: GithubInfo; user: any }>): ExtendedClient => ({
+    user: {
+        displayAvatarURL: jest.fn(() => 'http://example.com/bot_avatar.jpg'),
+    },
+    deploymentInfo: mockDeploymentInfo,
+    ...overrides,
+} as unknown as ExtendedClient);
+
+describe('infoCard helper', () => {
     beforeEach(() => {
         mockEmbedBuilder.mockClear();
         jest.clearAllMocks();
@@ -96,7 +108,7 @@ describe('infoCard helper', () => {
         process.env.BRANCH = 'main';
         process.env.ENV = 'prod';
 
-        const card = await infoCard.generateCard(mockBot, { repoOwner: 'Mirasii', repoName: 'BongBot' });
+        const card = await infoCard.generateCard(createMockBot());
 
         expect(card).toBeDefined();
         expect(card.data.title).toBeDefined();
@@ -118,9 +130,8 @@ describe('infoCard helper', () => {
             })
         );
 
-        // Need to re-import to clear the cached apiResponse
-        const freshInfoCard = await import('../../src/helpers/info_card.js?t=' + Date.now());
-        const card = await freshInfoCard.generateCard(mockBot, { repoOwner: 'Mirasii', repoName: 'BongBot' });
+        const failedInfo = await infoCard.getRepoInfoFromAPI('Mirasii', 'BongBot');
+        const card = await infoCard.generateCard(createMockBot({ deploymentInfo: failedInfo }));
 
         expect(card).toBeDefined();
         expect(card.data.title).toBeDefined();
@@ -142,9 +153,8 @@ describe('infoCard helper', () => {
             })
         );
 
-        // Need to re-import to clear the cached apiResponse
-        const freshInfoCard = await import('../../src/helpers/info_card.js?t=' + Date.now());
-        const card = await freshInfoCard.generateCard(mockBot, { repoOwner: 'Mirasii', repoName: 'BongBot' });
+        const failedInfo = await infoCard.getRepoInfoFromAPI('Mirasii', 'BongBot');
+        const card = await infoCard.generateCard(createMockBot({ deploymentInfo: failedInfo }));
 
         expect(card).toBeDefined();
         expect(card.data.description).toContain('N/A');
@@ -152,20 +162,15 @@ describe('infoCard helper', () => {
     });
 
     test('generateCard should handle missing bot avatar gracefully', async () => {
-        const mockBotNoAvatar = {
-            user: {
-                displayAvatarURL: jest.fn(() => null),
-            },
-            version: undefined
-        } as unknown as ExtendedClient;
-
-        const card = await infoCard.generateCard(mockBotNoAvatar, { repoOwner: 'Mirasii', repoName: 'BongBot' });
+        const card = await infoCard.generateCard(createMockBot({
+            user: { displayAvatarURL: jest.fn(() => null) },
+        }));
         expect(card).toBeDefined();
         expect(card.data.thumbnail).toEqual({ url: null });
     });
 
     test('generateCard should include all required fields', async () => {
-        const card = await infoCard.generateCard(mockBot, { repoOwner: 'Mirasii', repoName: 'BongBot' });
+        const card = await infoCard.generateCard(createMockBot());
 
         expect(card.data.fields).toBeDefined();
         const requiredFields = ['Repository', 'Last Started', 'Node.js', 'Library'];
@@ -175,14 +180,12 @@ describe('infoCard helper', () => {
     });
 
     test('uses fallback value when no Branch env var provided', async () => {
-        // Store original value and unset BRANCH to test null coalescing fallback
         const originalBranch = process.env.BRANCH;
         delete process.env.BRANCH;
         process.env.ENV = 'dev';
 
-        // Need to re-import to clear the cached apiResponse and force new API call
-        const freshInfoCard = await import('../../src/helpers/info_card.js?t=' + Date.now());
-        const card = await freshInfoCard.generateCard(mockBot, { repoOwner: 'Mirasii', repoName: 'BongBot' });
+        const info = await infoCard.getRepoInfoFromAPI('Mirasii', 'BongBot');
+        const card = await infoCard.generateCard(createMockBot({ deploymentInfo: info }));
 
         expect(card).toBeDefined();
         expect(card.data.description).toContain('main'); // Should use fallback 'main'
