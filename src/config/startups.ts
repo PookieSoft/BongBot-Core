@@ -66,10 +66,6 @@ export async function startBot(config: BotStartConfig): Promise<ExtendedClient> 
             }
         });
     }
-    // bot.on('interactionCreate', async (interaction: Interaction) => {
-    //     interactionCreateHandler(interaction, bot, additionalFunctions);
-    // });
-    /** set commands on bot ready */
     bot.on('clientReady', async () => {
         try {
             await bot.application!.commands.set(commands);
@@ -86,7 +82,7 @@ export async function startBot(config: BotStartConfig): Promise<ExtendedClient> 
     console.log(`sessionId: ${process.env.SESSION_ID}`);
     return bot;
 }
-async function interactionCreateHandler(interaction: Interaction, bot: ExtendedClient, additionalFunctions?: string[]): Promise<void> {
+async function interactionCreateHandler(interaction: Interaction, bot: ExtendedClient, additionalFunctions: string[]): Promise<void> {
 
     if (!interaction.isCommand()) { return; }
 
@@ -99,7 +95,7 @@ async function interactionCreateHandler(interaction: Interaction, bot: ExtendedC
             await interaction.deleteReply();
         }
         const message = await interaction.followUp(response);
-        for (const funcName of additionalFunctions || []) {
+        for (const funcName of additionalFunctions) {
             if (command && typeof (command as any)[funcName] === 'function') {
                 await (command as any)[funcName](interaction, message);
             }
