@@ -1,10 +1,10 @@
 import { Client, GatewayIntentBits, MessageFlags } from 'discord.js';
 import type { Message, InteractionReplyOptions, Interaction, ApplicationCommandDataResolvable } from 'discord.js';
-import { ExtendedClient } from './extended_client.js';
-import { validateRequiredConfig } from './config/index.js';
-import LOGGER from './services/logging_service.js';
-import { buildUnknownError } from './helpers/error_builder.js';
-import { getRepoInfoFromAPI, generateCard } from './helpers/info_card.js';
+import { ExtendedClient } from '../extended_client.js';
+import { validateRequiredConfig } from './index.js';
+import LOGGER from '../services/logging_service.js';
+import { buildUnknownError } from '../helpers/error_builder.js';
+import { getRepoInfoFromAPI, generateCard } from '../helpers/info_card.js';
 import crypto from 'crypto';
 
 type BotEventHandler = (bot: ExtendedClient, additionalFunctions: string[], ...args: any[]) => Promise<void>;
