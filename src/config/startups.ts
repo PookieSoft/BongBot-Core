@@ -1,4 +1,4 @@
-import { GatewayIntentBits, MessageFlags } from 'discord.js';
+import { GatewayIntentBits, MessageFlags, SlashCommandBuilder } from 'discord.js';
 import type { Message, InteractionReplyOptions, Interaction, ApplicationCommandDataResolvable } from 'discord.js';
 import { ExtendedClient } from '../extended_client.js';
 import { validateRequiredConfig } from './index.js';
@@ -134,6 +134,19 @@ const postDeploymentMessage = async (bot: ExtendedClient) => {
     const card = await generateCard(bot);
     await channel.send({ embeds: [card] });
 };
+
+export function commandBuilder (bot: ExtendedClient, commandsArray: any[]): Array<any> {
+    const commands: Array<any> = [];
+    for (const command of commandsArray) {
+        /** skip invalid commands */
+        if (!(command?.data instanceof SlashCommandBuilder)) {
+            continue;
+        }
+        bot.commands!.set(command.data.name, command);
+        commands.push(command.data.toJSON());
+    }
+    return commands;
+}
 
 export interface BotStartConfig {
     owner: string;
