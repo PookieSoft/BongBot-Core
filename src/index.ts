@@ -18,3 +18,6 @@ export { default as LOGGER } from './services/logging_service.js';
 // Loggers
 export { default as DefaultLogger } from './loggers/default_logger.js';
 export { default as FileLogger } from './loggers/file_logger.js';
+
+// Startups
+export { basicStart, startWithFunctions } from './startups.js';
