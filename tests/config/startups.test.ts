@@ -1,4 +1,6 @@
 import { jest, describe, test, expect, beforeEach, afterEach } from '@jest/globals';
+import { SlashCommandBuilder } from 'discord.js';
+import { Command } from '../../src/config/startups.js';
 
 // ── Mock crypto ────────────────────────────────────────────────────────────────
 const mockRandomUUID = jest.fn().mockReturnValue('test-session-uuid');
@@ -186,8 +188,8 @@ describe('startups', () => {
     describe('commandBuilder', () => {
         test('should add valid SlashCommand commands to bot.commands and return JSON array', () => {
             const validCommand = {
-                data: new MockSlashCommandBuilder(),
-                execute: jest.fn(),
+                data: new MockSlashCommandBuilder() as unknown as SlashCommandBuilder,
+                execute: jest.fn<() => Promise<any>>(),
             };
             (validCommand.data as any).name = 'ping';
 
@@ -198,11 +200,17 @@ describe('startups', () => {
         });
 
         test('should handle a mix of valid and invalid commands', () => {
-            const validCmd = { data: new MockSlashCommandBuilder(), execute: jest.fn() };
-            (validCmd.data as any).name = 'valid';
-            const invalidCmd = { data: null, execute: jest.fn() };
+            const validCommand = {
+                data: new MockSlashCommandBuilder() as unknown as SlashCommandBuilder,
+                execute: jest.fn<() => Promise<any>>(),
+            };
+            (validCommand.data as any).name = 'valid';
+            const invalidCmd = { 
+                data: null as unknown as SlashCommandBuilder, 
+                execute: jest.fn<() => Promise<any>>(),
+            };
 
-            const result = commandBuilder(mockBotInstance, [validCmd, invalidCmd]);
+            const result = commandBuilder(mockBotInstance, [validCommand, invalidCmd]);
 
             expect(result).toHaveLength(1);
             expect(result[0]).toEqual({ name: 'valid' });
@@ -219,7 +227,10 @@ describe('startups', () => {
             (cmd1.data as any).name = 'cmd1';
             (cmd2.data as any).name = 'cmd2';
 
-            const result = commandBuilder(mockBotInstance, [cmd1, cmd2]);
+            const result = commandBuilder(mockBotInstance, [
+                cmd1 as unknown as Command, 
+                cmd2 as unknown as Command
+            ]);
 
             expect(result).toHaveLength(2);
             expect(mockBotInstance.commands.size).toBe(2);
