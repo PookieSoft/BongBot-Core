@@ -1,5 +1,5 @@
 import { GatewayIntentBits, MessageFlags, SlashCommandBuilder } from 'discord.js';
-import type { Message, InteractionReplyOptions, Interaction, ApplicationCommandDataResolvable, ChatInputCommandInteraction, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder } from 'discord.js';
+import type { Message, InteractionReplyOptions, Interaction, ApplicationCommandDataResolvable, ChatInputCommandInteraction, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, CacheType } from 'discord.js';
 import { ExtendedClient } from '../extended_client.js';
 import { validateRequiredConfig } from './index.js';
 import LOGGER from '../services/logging_service.js';
@@ -157,6 +157,9 @@ export interface Command {
         | SlashCommandBuilder
         | SlashCommandOptionsOnlyBuilder
         | SlashCommandSubcommandsOnlyBuilder;
-    execute: (interaction: ChatInputCommandInteraction) => Promise<void>;
+    execute(
+        interaction: ChatInputCommandInteraction<CacheType>, 
+        client: any 
+    ): Promise<any>;
     [key: string]: any;
 }
