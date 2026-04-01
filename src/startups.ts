@@ -1,32 +1,74 @@
 import { Client, GatewayIntentBits, MessageFlags } from 'discord.js';
-import type { Message, InteractionReplyOptions, CommandInteraction, Interaction, ApplicationCommandDataResolvable } from 'discord.js';
-import type { ExtendedClient } from './helpers/interfaces.js';
+import type { Message, InteractionReplyOptions, Interaction, ApplicationCommandDataResolvable } from 'discord.js';
+import { ExtendedClient } from './extended_client.js';
 import { validateRequiredConfig } from './config/index.js';
 import LOGGER from './services/logging_service.js';
 import { buildUnknownError } from './helpers/error_builder.js';
-import { generateCard } from './helpers/info_card.js';
+import { getRepoInfoFromAPI, generateCard } from './helpers/info_card.js';
 import crypto from 'crypto';
 
-let GITHUB_REPO_OWNER: string;
-let GITHUB_REPO_NAME: string;
+type BotEventHandler = (bot: ExtendedClient, additionalFunctions: string[], ...args: any[]) => Promise<void>;
 
+const handlerMap: Map<string, BotEventHandler> = new Map([
+    ['interactionCreate', async (bot, funcs, interaction) => await interactionCreateHandler(interaction, bot, funcs)]
+]);
 
-export function basicStart(owner: string, repo: string, commandBuilder: (bot: ExtendedClient) => Array<ApplicationCommandDataResolvable>): ExtendedClient {
-    return startWithFunctions(owner, repo, commandBuilder, []);   
+export async function basicStart(owner: string, repo: string, commandBuilder: (bot: ExtendedClient) => Array<ApplicationCommandDataResolvable>): Promise<ExtendedClient> {
+    return await startBot({
+        owner: owner,
+        repo: repo,
+        commandBuilder: commandBuilder
+    });
 }
 
-export function startWithFunctions(owner: string, repo: string,commandBuilder: (bot: ExtendedClient) => Array<ApplicationCommandDataResolvable>, additionalFunctions: string[]): ExtendedClient {
-    GITHUB_REPO_OWNER = owner;
-    GITHUB_REPO_NAME = repo;
-    validateRequiredConfig();
-    const token: string = process.env.DISCORD_API_KEY!;
-    const bot: ExtendedClient = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
-    /** set up logging */
-    process.env.SESSION_ID = crypto.randomUUID();
-    const commands: Array<ApplicationCommandDataResolvable> = commandBuilder(bot);
-    bot.on('interactionCreate', async (interaction: Interaction) => {
-        interactionCreateHandler(interaction, bot, additionalFunctions);
+export async function startWithHandlers(owner: string, repo: string, commandBuilder: (bot: ExtendedClient) => Array<ApplicationCommandDataResolvable>, handlers: string[]): Promise<ExtendedClient> {
+    return await startBot({
+        owner: owner,
+        repo: repo,
+        commandBuilder: commandBuilder,
+        handlers: handlers
     });
+}
+
+export async function startWithFunctions(owner: string, repo: string, commandBuilder: (bot: ExtendedClient) => Array<ApplicationCommandDataResolvable>, additionalFunctions: string[]): Promise<ExtendedClient> {
+    return await startBot({
+        owner: owner,
+        repo: repo,
+        commandBuilder: commandBuilder,
+        additionalFunctions: additionalFunctions
+    });
+}
+
+export async function startBot(config: BotStartConfig): Promise<ExtendedClient> {
+    const {
+        owner,
+        repo,
+        commandBuilder,
+        additionalFunctions = [],
+        handlers = ['interactionCreate']
+    } = config;
+
+    /** validate and assign session */
+    validateRequiredConfig();
+    process.env.SESSION_ID = crypto.randomUUID();
+
+    const data = await getRepoInfoFromAPI(owner, repo);
+    const token: string = process.env.DISCORD_API_KEY!;
+    const bot: ExtendedClient = new ExtendedClient({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] }, LOGGER.default, data);
+    const commands: Array<ApplicationCommandDataResolvable> = commandBuilder(bot);
+    for (const [eventName, handler] of handlerMap) {
+        if (!handlers?.includes(eventName)) continue;
+        bot.on(eventName, async (...args) => {
+            try {
+                await handler(bot, additionalFunctions, ...args);
+            } catch (err) {
+                bot.logger!.error(err as Error);
+            }
+        });
+    }
+    // bot.on('interactionCreate', async (interaction: Interaction) => {
+    //     interactionCreateHandler(interaction, bot, additionalFunctions);
+    // });
     /** set commands on bot ready */
     bot.on('clientReady', async () => {
         try {
@@ -34,7 +76,8 @@ export function startWithFunctions(owner: string, repo: string,commandBuilder: (
             console.log('Commands Initiated!');
             await postDeploymentMessage(bot);
         } catch (error) {
-            LOGGER.log(error);
+            bot.logger!.error(error as Error);
+            throw new Error('Issue setting up commands or post-deployment message');
         }
     });
     /** login to bot */
@@ -44,7 +87,7 @@ export function startWithFunctions(owner: string, repo: string,commandBuilder: (
     return bot;
 }
 async function interactionCreateHandler(interaction: Interaction, bot: ExtendedClient, additionalFunctions?: string[]): Promise<void> {
-    
+
     if (!interaction.isCommand()) { return; }
 
     try {
@@ -70,7 +113,7 @@ async function interactionCreateHandler(interaction: Interaction, bot: ExtendedC
 
 
 const postDeploymentMessage = async (bot: ExtendedClient) => {
-    if (!process.env.DISCORD_CHANNEL_ID) { LOGGER.log('DISCORD_CHANNEL_ID not set'); return; }
+    if (!process.env.DISCORD_CHANNEL_ID) { bot.logger!.error(new Error('DISCORD_CHANNEL_ID not set')); return; }
     const channel = await bot.channels.fetch(process.env.DISCORD_CHANNEL_ID);
     if (!channel || !channel.isTextBased()) return;
     if (!('send' in channel && typeof channel.send === 'function')) return;
@@ -79,16 +122,23 @@ const postDeploymentMessage = async (bot: ExtendedClient) => {
         const botMessages = messages.filter((msg: Message) =>
             msg.author.id === bot.user!.id &&
             msg.embeds.some(embed =>
-                embed.title?.includes(GITHUB_REPO_NAME) ||
-                embed.description?.includes(GITHUB_REPO_NAME)
+                embed.title?.includes(bot!.deploymentInfo.repo) ||
+                embed.description?.includes(bot!.deploymentInfo.repo)
             )
         );
-        // TODO: [BUGS 1.2] message.delete() is async but not awaited — use Promise.allSettled with error handling
-        botMessages?.forEach((message: Message) => message.delete());
+        await Promise.allSettled(botMessages.map(m => m.delete()));
     } catch (err: any) {
         console.warn(`Warning: Could not delete messages. The bot might be missing 'Manage Messages' permissions. Error: ${err.message}`);
     }
     // Send the composed embed to the channel.
-    const card = await generateCard(bot, { repoOwner: GITHUB_REPO_OWNER, repoName: GITHUB_REPO_NAME });
+    const card = await generateCard(bot);
     await channel.send({ embeds: [card] });
 };
+
+export interface BotStartConfig {
+    owner: string;
+    repo: string;
+    commandBuilder: (bot: ExtendedClient) => Array<ApplicationCommandDataResolvable>;
+    additionalFunctions?: string[];
+    handlers?: string[];
+}

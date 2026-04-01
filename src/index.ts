@@ -20,4 +20,5 @@ export { default as DefaultLogger } from './loggers/default_logger.js';
 export { default as FileLogger } from './loggers/file_logger.js';
 
 // Startups
-export { basicStart, startWithFunctions } from './startups.js';
+export { basicStart, startWithHandlers, startWithFunctions, startBot } from './startups.js';
+export type { BotStartConfig } from './startups.js';
