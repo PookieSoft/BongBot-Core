@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, MessageFlags } from 'discord.js';
+import { GatewayIntentBits, MessageFlags } from 'discord.js';
 import type { Message, InteractionReplyOptions, Interaction, ApplicationCommandDataResolvable } from 'discord.js';
 import { ExtendedClient } from '../extended_client.js';
 import { validateRequiredConfig } from './index.js';
