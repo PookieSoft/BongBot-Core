@@ -232,6 +232,18 @@ describe('startups', () => {
             expect(result).toHaveLength(2);
             expect(mockBotInstance.commands.size).toBe(2);
         });
+
+        test('should skip null or undefined commands in the array', () => {
+            const validCmd = { data: new MockSlashCommandBuilder(), execute: jest.fn() };
+            (validCmd.data as any).name = 'valid';
+            
+            // Testing the null/undefined branch of command?.data
+            const result = commandBuilder(mockBotInstance, [validCmd, null, undefined]);
+
+            expect(result).toHaveLength(1);
+            expect(result[0]).toEqual({ name: 'valid' });
+            expect(mockBotInstance.commands.size).toBe(1);
+        });
     });
 
     // ── startBot ────────────────────────────────────────────────────────────────
@@ -680,5 +692,34 @@ describe('startups', () => {
             await expect(triggerEvent('clientReady')).resolves.not.toThrow();
             expect(mockChannel.send).toHaveBeenCalled();
         });
+
+        test('should return early if channel lacks a send function', async () => {
+            const weirdChannel = {
+                isTextBased: jest.fn(() => true),
+                // Explicitly omit 'send' or make it not a function
+                messages: { fetch: jest.fn() }
+            };
+            mockBotInstance.channels.fetch.mockResolvedValueOnce(weirdChannel);
+
+            await triggerEvent('clientReady');
+
+            // Verification: It should exit before reaching generateCard or channel.messages.fetch
+            expect(mockGenerateCard).not.toHaveBeenCalled();
+            expect(weirdChannel.messages.fetch).not.toHaveBeenCalled();
+        });
+
+        test('should return early if send is present but not a function', async () => {
+            const weirdChannel = {
+                isTextBased: jest.fn(() => true),
+                send: "I am a string, not a function",
+                messages: { fetch: jest.fn() }
+            };
+            mockBotInstance.channels.fetch.mockResolvedValueOnce(weirdChannel);
+
+            await triggerEvent('clientReady');
+
+            expect(mockGenerateCard).not.toHaveBeenCalled();
+        });
+
     });
 });
