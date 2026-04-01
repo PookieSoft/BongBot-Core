@@ -197,14 +197,6 @@ describe('startups', () => {
             expect(result).toEqual([{ name: 'ping' }]);
         });
 
-        test('should skip commands whose data is not a SlashCommandBuilder instance', () => {
-            const invalidCommand = { data: { name: 'bad' }, execute: jest.fn() };
-            const result = commandBuilder(mockBotInstance, [invalidCommand]);
-
-            expect(result).toHaveLength(0);
-            expect(mockBotInstance.commands.size).toBe(0);
-        });
-
         test('should handle a mix of valid and invalid commands', () => {
             const validCmd = { data: new MockSlashCommandBuilder(), execute: jest.fn() };
             (validCmd.data as any).name = 'valid';

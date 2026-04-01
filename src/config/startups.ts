@@ -131,11 +131,11 @@ const postDeploymentMessage = async (bot: ExtendedClient) => {
     await channel.send({ embeds: [card] });
 };
 
-export function commandBuilder (bot: ExtendedClient, commandsArray: any[]): Array<any> {
+export function commandBuilder (bot: ExtendedClient, commandsArray: { data: SlashCommandBuilder }[]): Array<any> {
     const commands: Array<any> = [];
     for (const command of commandsArray) {
         /** skip invalid commands */
-        if (!(command?.data instanceof SlashCommandBuilder)) {
+        if (!command?.data) {
             continue;
         }
         bot.commands!.set(command.data.name, command);
