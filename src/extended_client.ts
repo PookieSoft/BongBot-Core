@@ -15,5 +15,4 @@ export class ExtendedClient extends Client {
         this.deploymentInfo = data;
     }
 
-
 }
