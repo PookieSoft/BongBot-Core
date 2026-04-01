@@ -1,2 +1,12 @@
-dist/
-node_modules/
+./node_modules/*
+BongBot.env
+node_modules
+commands.old
+coverage/*
+.env
+report.json
+dist/*
+data/*
+logs/*
+.claude/
+test-results/
