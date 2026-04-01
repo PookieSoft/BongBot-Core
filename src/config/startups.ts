@@ -1,5 +1,5 @@
 import { GatewayIntentBits, MessageFlags, SlashCommandBuilder } from 'discord.js';
-import type { Message, InteractionReplyOptions, Interaction, ApplicationCommandDataResolvable } from 'discord.js';
+import type { Message, InteractionReplyOptions, Interaction, ApplicationCommandDataResolvable, ChatInputCommandInteraction, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, CacheType } from 'discord.js';
 import { ExtendedClient } from '../extended_client.js';
 import { validateRequiredConfig } from './index.js';
 import LOGGER from '../services/logging_service.js';
@@ -131,7 +131,7 @@ const postDeploymentMessage = async (bot: ExtendedClient) => {
     await channel.send({ embeds: [card] });
 };
 
-export function commandBuilder (bot: ExtendedClient, commandsArray: { data: SlashCommandBuilder }[]): Array<any> {
+export function commandBuilder(bot: ExtendedClient, commandsArray: Command[]): Array<any> {
     const commands: Array<any> = [];
     for (const command of commandsArray) {
         /** skip invalid commands */
@@ -150,4 +150,16 @@ export interface BotStartConfig {
     commandBuilder: (bot: ExtendedClient) => Array<ApplicationCommandDataResolvable>;
     additionalFunctions?: string[];
     handlers?: string[];
+}
+
+export interface Command {
+    data:
+        | SlashCommandBuilder
+        | SlashCommandOptionsOnlyBuilder
+        | SlashCommandSubcommandsOnlyBuilder;
+    execute(
+        interaction: ChatInputCommandInteraction<CacheType>, 
+        client: any 
+    ): Promise<any>;
+    [key: string]: any;
 }
