@@ -8,9 +8,6 @@ import { jest } from '@jest/globals';
  * Standard MSW setup for tests that use HTTP mocking
  * Should be called in describe block of tests that need MSW
  */
-const setupMSWServer = () => {
-    afterEach(() => server.resetHandlers());
-};
 
 /**
  * Standard mock cleanup for tests
@@ -33,13 +30,11 @@ const setupMockCleanup = () => {
  * Combined setup for tests that need both MSW and mock cleanup
  */
 const setupStandardTestEnvironment = () => {
-    setupMSWServer();
     setupMockCleanup();
 };
 
 export {
     setupStandardTestEnvironment,
-    setupMSWServer,
     setupMockCleanup,
     server
 };
