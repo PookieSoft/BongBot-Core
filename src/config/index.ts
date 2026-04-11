@@ -4,7 +4,7 @@ const config = {
     },
     apis: {
         quotedb: {
-            url: "https://quotes.elmu.dev",
+            url: process.env.QUOTEDB_URL || "https://quotes.elmu.dev/api/v1/quotes",
             apikey: process.env.QUOTEDB_API_KEY || null,
             user_id: process.env.QUOTEDB_USER_ID || null
         },
