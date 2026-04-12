@@ -3,20 +3,65 @@ import dns from 'dns/promises';
 import net from 'node:net';
 import ipaddr from 'ipaddr.js';
 
+/**
+ * Lightweight HTTP client wrapper around `fetch` used by BongBot modules.
+ *
+ * Provides a small convenience surface (`get`/`post`) and an SSRF validator
+ * for safely contacting user-supplied server URLs (e.g. Pterodactyl panels).
+ *
+ * Responses with a `2xx` status are parsed as JSON; `204` / empty responses
+ * return `null`; non-`ok` responses throw with the status and body text.
+ */
 export class Caller {
+    /**
+     * Validates a user-supplied server URL against SSRF attack vectors.
+     *
+     * Enforces that the URL is well-formed, uses HTTPS, resolves to a public
+     * IP (not private/loopback/link-local/etc.), and — if
+     * `PTERODACTYL_ALLOWED_HOSTS` is set — that its hostname is on the
+     * allowlist.
+     *
+     * @param serverUrl The URL to validate.
+     * @throws {Error} If the URL fails any of the safety checks.
+     */
     async validateServerSSRF(serverUrl: string): Promise<void> {
         await validateServerUrl(serverUrl);
     }
 
+    /**
+     * Performs an HTTP GET request and returns the parsed JSON body.
+     *
+     * @param url      Base URL.
+     * @param path     Optional path appended to the base URL.
+     * @param params   Optional pre-encoded query string (no leading `?`).
+     * @param headers  Optional request headers.
+     * @returns The parsed JSON body, or `null` for empty responses.
+     * @throws {Error} When the response status is not OK.
+     */
     async get(url: string, path?: string | null, params?: string | null, headers?: { [key: string]: any }) {
         return await get(url, path, params, headers);
     }
-    
+
+    /**
+     * Performs an HTTP POST request with a JSON-serialized body.
+     *
+     * @param url      Base URL.
+     * @param path     Optional path appended to the base URL.
+     * @param headers  Optional request headers. Remember to include
+     *                 `'Content-Type': 'application/json'` if the remote requires it.
+     * @param body     Value passed through `JSON.stringify` before sending.
+     * @returns The parsed JSON body, or `null` for empty responses.
+     * @throws {Error} When the response status is not OK.
+     */
     async post(url: string, path?: string | null, headers?: { [key: string]: any } | null, body?: any) {
         return await post(url, path, headers, body);
     }
 }
 
+/**
+ * Default export exposes a functional GET/POST surface for callers that do
+ * not need an instance (e.g. `import Caller from 'bongbot-core'; Caller.get(...)`).
+ */
 export default { get, post };
 
 async function get(url: string, path?: string | null, params?: string | null, headers?: { [key: string]: any }) {

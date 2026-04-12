@@ -2,17 +2,39 @@ import { Logger } from '../helpers/interfaces.js';
 import DefaultLogger from '../loggers/default_logger.js';
 import FileLogger from '../loggers/file_logger.js';
 
+/**
+ * Central logging surface used by BongBot and its dependents.
+ *
+ * Access a logger via `LOGGER.default` (which picks the right underlying
+ * implementation based on env), or call the legacy `LOGGER.log(...)` shim
+ * while migrating older code.
+ *
+ * @example
+ * ```ts
+ * import { LOGGER } from 'bongbot-core';
+ * LOGGER.default.info('hello world');
+ * ```
+ */
 export default {
+    /**
+     * The active `Logger` implementation. Returns the file-backed logger
+     * when `DEFAULT_LOGGER=file` (useful for local dev), otherwise the
+     * SQLite-backed {@link DefaultLogger}.
+     */
     get default(): Logger {
         const loggerService = LoggerService.getInstance();
         if (process.env.DEFAULT_LOGGER === 'file') return loggerService.getFileLogger(); /** use environment variable to switch loggers for local dev */
         return loggerService.getDefaultLogger();
     },
     /**
-     * Legacy log function has been updated to use the new DefaultLogger so that code uses it implicitly.
-     * Old code using LOGGER.log(error) will still work as expected, however it is recommended to use the new Logger interface directly.
-     * New folder structure places loggers in src/loggers - if additional loggers are created, they should have get functions here.
-     * This file is now intended to surface loggers, e.g. LOGGER.default, LOGGER.custom_logger, etc.
+     * Legacy log shim — prefer `LOGGER.default.info/debug/error` in new code.
+     *
+     * Routes the supplied value to the active logger:
+     * - `Error` instances are logged via `logger.error`
+     * - strings are logged at debug level as-is
+     * - everything else is `JSON.stringify`ed and logged at debug level
+     *
+     * @param error Any value to log.
      */
     async log(error: any) {
         const logger = this.default;
@@ -22,7 +44,11 @@ export default {
         }
         logger.debug(typeof error === 'string' ? error : JSON.stringify(error));
     },
-    /** Closes all logger connections. Useful for graceful shutdown or testing cleanup */
+    /**
+     * Closes every cached logger connection. Call this during graceful
+     * shutdown or between test cases to release SQLite handles and file
+     * descriptors.
+     */
     closeAll() {
         LoggerService.getInstance().closeAll();
     }

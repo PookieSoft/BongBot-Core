@@ -4,6 +4,20 @@ import type { ExtendedClient, GithubInfo, GithubBranchResponse, GithubTagRespons
 let apiResponse: GithubInfo | undefined;
 const timestamp = Math.floor(Date.now() / 1000);
 
+/**
+ * Fetches the latest release tag and most recent commit on the default
+ * branch for the given GitHub repository and normalises them into a
+ * {@link GithubInfo} payload used by the deployment info card.
+ *
+ * The default branch is read from `process.env.BRANCH` and falls back to
+ * `main`. If either API call fails, a sentinel payload containing `'N/A'`
+ * placeholder values is returned so that bot startup is never blocked by a
+ * transient GitHub outage.
+ *
+ * @param owner GitHub owner or organisation.
+ * @param repo  GitHub repository name.
+ * @returns A {@link GithubInfo}-shaped object, always resolved (never throws).
+ */
 export const getRepoInfoFromAPI = async (owner: string, repo: string) => {
     const repoApiUrl = `https://api.github.com/repos/${owner}/${repo}`;
     const headers = { 'User-Agent': 'Node.js-Deploy-Script' };
@@ -48,6 +62,19 @@ export const getRepoInfoFromAPI = async (owner: string, repo: string) => {
     }
 };
 
+/**
+ * Builds the BongBot "deployment info" embed shown when the bot comes online.
+ *
+ * Relies on `bot.deploymentInfo` being populated — normally set by
+ * {@link startBot} via {@link getRepoInfoFromAPI}. The card includes:
+ * - Latest commit hash, message and link
+ * - Repository link
+ * - Start timestamp, Node version, and library
+ * - Version footer (release tag in prod, `dev build` elsewhere)
+ *
+ * @param bot The running client; its `deploymentInfo` drives the card contents.
+ * @returns A discord.js `EmbedBuilder` ready to send.
+ */
 export const generateCard = async (bot: ExtendedClient) => {
     const info = bot.deploymentInfo!;
     return new EmbedBuilder()
