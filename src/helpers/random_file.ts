@@ -1,6 +1,27 @@
 import path from 'path';
 import fs from 'fs';
 
+/**
+ * Picks a random regular file from the given directory and invokes the
+ * callback with its basename. Subdirectories and other non-file entries are
+ * transparently skipped (the function retries until it finds a real file or
+ * the directory is exhausted).
+ *
+ * Follows Node's standard error-first callback convention.
+ *
+ * @param dir      Absolute or relative path to the directory to read.
+ * @param callback Invoked with `(err, file)`. `file` is `undefined` if the
+ *                 directory contains no regular files.
+ *
+ * @example
+ * ```ts
+ * import getRandomFile from 'bongbot-core';
+ * getRandomFile('./dist/responses', (err, file) => {
+ *   if (err) throw err;
+ *   console.log('chose', file);
+ * });
+ * ```
+ */
 export default function getRandomFile(dir: string, callback: (err: Error | null, file?: string) => void) {
     fs.readdir(dir, (err, files) => {
         if (err) return callback(err)

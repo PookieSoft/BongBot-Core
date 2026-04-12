@@ -1,3 +1,26 @@
+/**
+ * Central runtime configuration object for BongBot.
+ *
+ * Values are resolved from environment variables at module load time with safe
+ * defaults where appropriate. Import as the default export to read any setting,
+ * e.g. `import config from 'bongbot-core'`.
+ *
+ * @property discord.apikey              Discord bot token (from `DISCORD_API_KEY`).
+ * @property apis.quotedb.url            Base URL for the QuoteDB API (defaults to the public endpoint).
+ * @property apis.quotedb.apikey         QuoteDB API key (from `QUOTEDB_API_KEY`).
+ * @property apis.quotedb.user_id        QuoteDB user id (from `QUOTEDB_USER_ID`).
+ * @property apis.google.url             Base URL for Google APIs.
+ * @property apis.google.apikey          Google API key (from `GOOGLE_API_KEY`).
+ * @property apis.google.cx              Google custom search engine id (from `GOOGLE_CX`).
+ * @property apis.openai.active          Whether the OpenAI integration is enabled (from `OPENAI_ACTIVE`).
+ * @property apis.openai.apikey          OpenAI API key (from `OPENAI_API_KEY`).
+ * @property apis.openai.model           OpenAI model identifier (defaults to `gpt-4o`).
+ * @property apis.googleai.active        Whether the Google AI integration is enabled (from `GOOGLEAI_ACTIVE`).
+ * @property apis.googleai.apikey        Google AI API key (from `GOOGLEAI_API_KEY`).
+ * @property apis.googleai.model         Google AI text model identifier.
+ * @property apis.googleai.image_model   Google AI image model identifier.
+ * @property media.file_root             Root directory for static media. Resolves to `./src/` under Jest and `./dist/` in production.
+ */
 const config = {
     discord: {
         apikey: process.env.DISCORD_API_KEY || null
@@ -35,6 +58,8 @@ const config = {
  * Validates that required environment variables are set.
  * Throws an error with helpful message if any required variables are missing.
  * Call this early in application startup to fail fast.
+ * 
+ * @throws {Error} If any required environment variables are missing.
  */
 export function validateRequiredConfig(): void {
     const errors: string[] = [];
@@ -63,7 +88,29 @@ export function validateRequiredConfig(): void {
 }
 
 export default config;
+
+/**
+ * Resolves a path relative to the configured media root (`config.media.file_root`).
+ *
+ * Use this when loading bundled assets (images, responses, etc.) so the same
+ * code works both under Jest (reads from `./src/`) and in production builds
+ * (reads from `./dist/`).
+ *
+ * @param resolved_path Path fragment relative to the media root. Leading slashes are not required.
+ * @returns The fully-qualified path on disk.
+ *
+ * @example
+ * ```ts
+ * import { getFilePath } from 'bongbot-core';
+ * const path = getFilePath('responses/greeting.gif');
+ * ```
+ */
 export function getFilePath(resolved_path: string): string {
     return `${config.media.file_root}/${resolved_path}`;
 }
+
+/**
+ * Convenience re-export of `config.apis` for modules that only need the API
+ * configuration block.
+ */
 export const apis = config.apis;
