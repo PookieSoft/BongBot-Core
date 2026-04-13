@@ -1,28 +1,33 @@
 import path from 'path';
 import fsp from 'fs/promises';
-import BetterSqlite3 from 'better-sqlite3';
 import 'source-map-support/register.js';
 import { Logger } from '../helpers/interfaces.js';
 import Utilities from '../helpers/utilities.js';
 import { ChatInputCommandInteraction } from 'discord.js';
 
-/**
- * @class DefaultLogger
- * Default logger implementation using SQLite database to store logs.
- * Logs are stored in the 'logs' directory with a database file named after the current date (YYYY-MM-DD.db).
- * If database logging fails, it falls back to a legacy file-based logging mechanism.
- * Logs include session ID, timestamp, message, stack trace, and log level.
- */
-export default class DefaultLogger implements Logger {
-    private db: BetterSqlite3.Database;
-    private stmt: BetterSqlite3.Statement;
+export interface SqliteStatement {
+    run(...params: unknown[]): unknown;
+}
 
-    constructor() {
-        const logsDir = path.join(process.cwd(), 'logs');
-        const dbPath = path.join(logsDir, `${Utilities.getCurrentDateISO()}.db`);
-        console.log('Initializing DefaultLogger with DB path:', dbPath);
-        this.db = new BetterSqlite3(dbPath);
-        const createTableSQL = `
+export interface SqliteDatabase {
+    exec(sql: string): void;
+    prepare(sql: string): SqliteStatement;
+    close(): void;
+}
+
+/**
+ * @abstract SqliteLogger
+ * Shared SQLite-backed logger base class for Node and Bun runtimes.
+ *
+ * Subclasses supply a runtime-appropriate `SqliteDatabase` instance via
+ * `super(db)` and own only their constructor. All logging logic, the DB
+ * schema, the prepared statement, and the legacy file fallback live here.
+ */
+export abstract class SqliteLogger implements Logger {
+    private readonly stmt: SqliteStatement;
+
+    protected constructor(private readonly db: SqliteDatabase) {
+        this.db.exec(`
             CREATE TABLE IF NOT EXISTS logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 correlation_id TEXT,
@@ -32,8 +37,7 @@ export default class DefaultLogger implements Logger {
                 stack TEXT,
                 level TEXT NOT NULL
             )
-        `;
-        this.db.exec(createTableSQL);
+        `);
         this.stmt = this.db.prepare(`
             INSERT INTO logs (message, stack, level, session_id, correlation_id)
             VALUES (?, ?, ?, ?, ?)
@@ -51,12 +55,13 @@ export default class DefaultLogger implements Logger {
     }
 
     error(error: Error, interaction?: ChatInputCommandInteraction): void {
-        const resolvedStack = error.stack;
-        this.log(`${error.message || error}`, resolvedStack, 'ERROR', interaction?.id);
+        this.log(`${error.message || error}`, error.stack, 'ERROR', interaction?.id);
         console.error(`${Utilities.formatLocalDateTime()} | An Error Occurred - check logs for details.`);
     }
 
-    close(): void { this.db.close(); }
+    close(): void {
+        this.db.close();
+    }
 
     private log(message: string, stack: string | undefined, level: string, interaction_id?: string): void {
         try {

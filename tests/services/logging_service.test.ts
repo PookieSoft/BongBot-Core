@@ -1,7 +1,7 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { Logger } from '../../src/helpers/interfaces.js';
 
-const mockDefaultLoggerInstance: Logger = {
+const mockRuntimeLoggerInstance: Logger = {
     info: jest.fn(),
     debug: jest.fn(),
     error: jest.fn(),
@@ -15,11 +15,13 @@ const mockFileLoggerInstance: Logger = {
     close: jest.fn(),
 };
 
-const MockDefaultLogger = jest.fn(() => mockDefaultLoggerInstance);
+const MockRuntimeLogger = jest.fn(() => mockRuntimeLoggerInstance);
 const MockFileLogger = jest.fn(() => mockFileLoggerInstance);
 
-jest.unstable_mockModule('../../src/loggers/default_logger.js', () => ({
-    default: MockDefaultLogger,
+// Mock the self-reference that logging_service.ts imports.
+// jest.config.ts routes this to src/loggers/node_runtime_logger for tests
+jest.unstable_mockModule('@pookiesoft/bongbot-core/runtime-logger', () => ({
+    default: MockRuntimeLogger,
 }));
 
 jest.unstable_mockModule('../../src/loggers/file_logger.js', () => ({
@@ -51,9 +53,9 @@ describe('LoggingService', () => {
     });
 
     describe('default getter', () => {
-        it('should return the default logger when DEFAULT_LOGGER is not set', () => {
+        it('should return the default runtime logger when DEFAULT_LOGGER is not set', () => {
             const logger = LOGGER.default;
-            expect(logger).toBe(mockDefaultLoggerInstance);
+            expect(logger).toBe(mockRuntimeLoggerInstance);
         });
 
         it('should return the file logger when DEFAULT_LOGGER is set to "file"', async () => {
@@ -64,11 +66,50 @@ describe('LoggingService', () => {
             expect(logger).toBe(mockFileLoggerInstance);
         });
 
+        it('should return the default logger when DEFAULT_LOGGER is set to "default"', async () => {
+            process.env.DEFAULT_LOGGER = 'default';
+            jest.resetModules();
+            const module = await import('../../src/services/logging_service.js');
+            const logger = module.default.default;
+            expect(logger).toBe(mockRuntimeLoggerInstance);
+        });
+
+        it('should fall back to the default logger and warn when DEFAULT_LOGGER is unknown', async () => {
+            const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+            process.env.DEFAULT_LOGGER = 'bunn';
+            jest.resetModules();
+            const module = await import('../../src/services/logging_service.js');
+            const logger = module.default.default;
+            expect(logger).toBe(mockRuntimeLoggerInstance);
+            expect(consoleWarnSpy).toHaveBeenCalledWith('Logger "bunn" is not found, switching to "default".');
+            consoleWarnSpy.mockRestore();
+        });
+
         it('should return the same logger instance on subsequent calls', () => {
             const logger1 = LOGGER.default;
             const logger2 = LOGGER.default;
             expect(logger1).toBe(logger2);
-            expect(MockDefaultLogger).toHaveBeenCalledTimes(1);
+            expect(MockRuntimeLogger).toHaveBeenCalledTimes(1);
+        });
+
+        it('should warn when requesting node logger in simulated Bun runtime', async () => {
+            const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+            // Set globalThis.Bun before resetting modules so the new module sees it
+            (globalThis as any).Bun = {};
+            process.env.DEFAULT_LOGGER = 'node';
+            jest.resetModules();
+            const module = await import('../../src/services/logging_service.js');
+            // Register a 'node' logger
+            const mockNodeLogger = jest.fn(() => mockFileLoggerInstance);
+            module.default.register('node', mockNodeLogger);
+            // Request the Node logger in "Bun" runtime - should be incompatible
+            const logger = module.default.default;
+            // Verify the logger was not instantiated (fallback to default instead)
+            expect(mockNodeLogger).not.toHaveBeenCalled();
+            expect(consoleWarnSpy).toHaveBeenCalledWith('Logger "node" is runtime incompatible, switching to "default".');
+            // Clean up
+            delete (globalThis as any).Bun;
+            consoleWarnSpy.mockRestore();
         });
     });
 
@@ -76,29 +117,29 @@ describe('LoggingService', () => {
         it('should call error method when passed an Error instance', async () => {
             const testError = new Error('Test error message');
             await LOGGER.log(testError);
-            expect(mockDefaultLoggerInstance.error).toHaveBeenCalledWith(testError);
+            expect(mockRuntimeLoggerInstance.error).toHaveBeenCalledWith(testError);
         });
 
         it('should call debug method when passed a string', async () => {
             await LOGGER.log('Test debug message');
-            expect(mockDefaultLoggerInstance.debug).toHaveBeenCalledWith('Test debug message');
+            expect(mockRuntimeLoggerInstance.debug).toHaveBeenCalledWith('Test debug message');
         });
 
         it('should stringify and call debug method when passed an object', async () => {
             const testObj = { key: 'value', num: 123 };
             await LOGGER.log(testObj);
-            expect(mockDefaultLoggerInstance.debug).toHaveBeenCalledWith(JSON.stringify(testObj));
+            expect(mockRuntimeLoggerInstance.debug).toHaveBeenCalledWith(JSON.stringify(testObj));
         });
 
         it('should stringify and call debug method when passed an array', async () => {
             const testArray = [1, 2, 3];
             await LOGGER.log(testArray);
-            expect(mockDefaultLoggerInstance.debug).toHaveBeenCalledWith(JSON.stringify(testArray));
+            expect(mockRuntimeLoggerInstance.debug).toHaveBeenCalledWith(JSON.stringify(testArray));
         });
 
         it('should stringify and call debug method when passed a number', async () => {
             await LOGGER.log(42);
-            expect(mockDefaultLoggerInstance.debug).toHaveBeenCalledWith('42');
+            expect(mockRuntimeLoggerInstance.debug).toHaveBeenCalledWith('42');
         });
     });
 
@@ -141,7 +182,7 @@ describe('LoggingService', () => {
             // Close all connections
             module.default.closeAll();
 
-            expect(mockDefaultLoggerInstance.close).toHaveBeenCalled();
+            expect(mockRuntimeLoggerInstance.close).toHaveBeenCalled();
             expect(mockFileLoggerInstance.close).toHaveBeenCalled();
         });
 
@@ -154,7 +195,7 @@ describe('LoggingService', () => {
                 debug: jest.fn(),
                 error: jest.fn(),
             };
-            MockDefaultLogger.mockReturnValueOnce(loggerWithoutClose);
+            MockRuntimeLogger.mockReturnValueOnce(loggerWithoutClose);
 
             const module = await import('../../src/services/logging_service.js');
             delete process.env.DEFAULT_LOGGER;
@@ -173,11 +214,34 @@ describe('LoggingService', () => {
             module.default.closeAll();
 
             // Reset mock to track new instantiation
-            MockDefaultLogger.mockClear();
+            MockRuntimeLogger.mockClear();
 
             // Getting logger again should create a new instance
             module.default.default;
-            expect(MockDefaultLogger).toHaveBeenCalledTimes(1);
+            expect(MockRuntimeLogger).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe('register method', () => {
+        it('should register a custom logger and make it accessible within the same module instance', async () => {
+            jest.resetModules();
+            const module = await import('../../src/services/logging_service.js');
+
+            const customLoggerInstance: Logger = {
+                info: jest.fn(),
+                debug: jest.fn(),
+                error: jest.fn(),
+                close: jest.fn(),
+            };
+            const CustomLogger = jest.fn(() => customLoggerInstance);
+
+            module.default.register('custom', CustomLogger);
+            process.env.DEFAULT_LOGGER = 'custom';
+
+            // Don't reset modules - just access the logger from the same instance
+            const logger = module.default.default;
+
+            expect(logger).toBe(customLoggerInstance);
         });
     });
 });

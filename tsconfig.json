@@ -15,7 +15,8 @@
         "forceConsistentCasingInFileNames": true,
         "isolatedModules": true,
         "noImplicitReturns": false,
-        "noFallthroughCasesInSwitch": true
+        "noFallthroughCasesInSwitch": true,
+        "types": ["bun-types", "jest", "node"],
     },
     "include": ["src/**/*"],
     "exclude": ["node_modules", "dist"]

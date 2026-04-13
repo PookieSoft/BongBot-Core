@@ -1,7 +1,8 @@
 import { Logger } from '../helpers/interfaces.js';
-import DefaultLogger from '../loggers/default_logger.js';
 import FileLogger from '../loggers/file_logger.js';
+import RuntimeLogger from '@pookiesoft/bongbot-core/runtime-logger';
 
+const isBun = "Bun" in globalThis;
 /**
  * Central logging surface used by BongBot and its dependents.
  *
@@ -15,16 +16,22 @@ import FileLogger from '../loggers/file_logger.js';
  * LOGGER.default.info('hello world');
  * ```
  */
+
 export default {
     /**
-     * The active `Logger` implementation. Returns the file-backed logger
-     * when `DEFAULT_LOGGER=file` (useful for local dev), otherwise the
-     * SQLite-backed {@link DefaultLogger}.
+     * The active `Logger` implementation, resolved via the `DEFAULT_LOGGER`
+     * env var against the registry in {@link LoggerService}. Built-in keys:
+     * - `node` — SQLite-backed logger used on the Node runtime. Resolved at
+     *   bundle time via the `./runtime-logger` conditional export.
+     * - `bun` — SQLite-backed logger used on the Bun runtime. Resolved at
+     *   bundle time via the `./runtime-logger` conditional export.
+     * - `file` — {@link FileLogger}, useful for local dev.
+     *
+     * Only the runtime-appropriate SQLite logger is registered, so the wrong
+     * implementation is never present in a bundled build.
      */
     get default(): Logger {
-        const loggerService = LoggerService.getInstance();
-        if (process.env.DEFAULT_LOGGER === 'file') return loggerService.getFileLogger(); /** use environment variable to switch loggers for local dev */
-        return loggerService.getDefaultLogger();
+        return LoggerService.getInstance().getLogger(process.env.DEFAULT_LOGGER || 'default');
     },
     /**
      * Legacy log shim — prefer `LOGGER.default.info/debug/error` in new code.
@@ -45,6 +52,25 @@ export default {
         logger.debug(typeof error === 'string' ? error : JSON.stringify(error));
     },
     /**
+     * Registers a custom logger implementation under `name`, making it
+     * selectable via the `DEFAULT_LOGGER` env var or a future `register` call.
+     * Registering under an existing key replaces that entry.
+     *
+     * @example
+     * ```ts
+     * import { LOGGER } from 'bongbot-core';
+     * LOGGER.register('my-logger', MyLogger);
+     * process.env.DEFAULT_LOGGER = 'my-logger';
+     * LOGGER.default.info('using custom logger');
+     * ```
+     *
+     * @param name    The key used to select this logger.
+     * @param LoggerClass  A zero-argument constructor that produces a {@link Logger}.
+     */
+    register(name: string, LoggerClass: new () => Logger) {
+        LoggerService.getInstance().register(name, LoggerClass);
+    },
+    /**
      * Closes every cached logger connection. Call this during graceful
      * shutdown or between test cases to release SQLite handles and file
      * descriptors.
@@ -58,7 +84,12 @@ class LoggerService {
     private static instance: LoggerService;
     private connections: Map<string, Logger> = new Map();
 
-    private constructor() {}
+    private loggerMapping: { [key: string]: new () => Logger } = {};
+
+    private constructor() {
+        this.register('default', RuntimeLogger);
+        this.register('file', FileLogger);
+    }
 
     static getInstance(): LoggerService {
         if (!LoggerService.instance) {
@@ -67,18 +98,25 @@ class LoggerService {
         return LoggerService.instance;
     }
 
-    getDefaultLogger(): Logger {
-        if (!this.connections.has('default')) {
-            this.connections.set('default', new DefaultLogger());
+    getLogger(name: string): Logger {
+        let targetName = name;
+        const isIncompatible = (isBun && name === 'node') || (!isBun && name === 'bun');
+        
+        if (!this.loggerMapping[targetName] || isIncompatible) {
+            const reason = !this.loggerMapping[targetName] ? "not found" : "runtime incompatible";
+            console.warn(`Logger "${targetName}" is ${reason}, switching to "default".`);
+            targetName = 'default';
         }
-        return this.connections.get('default')!;
+        if (!this.connections.has(targetName)) {
+            const LoggerClass = this.loggerMapping[targetName];
+            this.connections.set(targetName, new LoggerClass());
+        }
+
+        return this.connections.get(targetName)!;
     }
 
-    getFileLogger (): Logger {
-        if (!this.connections.has('file')) {
-            this.connections.set('file', new FileLogger());
-        }
-        return this.connections.get('file')!;
+    register(name: string, LoggerClass: new () => Logger): void {
+        this.loggerMapping[name] = LoggerClass;
     }
 
     closeAll(): void {

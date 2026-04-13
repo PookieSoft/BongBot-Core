@@ -10,6 +10,12 @@
             "types": "./dist/index.d.ts",
             "import": "./dist/index.js"
         },
+        "./runtime-logger": {
+            "types": "./dist/loggers/node_logger.d.ts",
+            "bun": "./dist/loggers/bun_logger.js",
+            "node": "./dist/loggers/node_logger.js",
+            "default": "./dist/loggers/node_logger.js"
+        },
         "./package.json": "./package.json"
     },
     "publishConfig": {
@@ -39,6 +45,7 @@
         "@types/jest": "^30.0.0",
         "@types/node": "^25.5.2",
         "better-sqlite3": "^12.8.0",
+        "bun-types": "^1.3.12",
         "cross-env": "^10.1.0",
         "discord.js": "^14.26.2",
         "jest": "^30.2.0",
