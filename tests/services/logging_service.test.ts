@@ -84,6 +84,25 @@ describe('LoggingService', () => {
             expect(logger).toBe(mockBunLoggerInstance);
         });
 
+        it('should return the default logger when DEFAULT_LOGGER is set to "default"', async () => {
+            process.env.DEFAULT_LOGGER = 'default';
+            jest.resetModules();
+            const module = await import('../../src/services/logging_service.js');
+            const logger = module.default.default;
+            expect(logger).toBe(mockDefaultLoggerInstance);
+        });
+
+        it('should fall back to the default logger and warn when DEFAULT_LOGGER is unknown', async () => {
+            const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+            process.env.DEFAULT_LOGGER = 'bunn';
+            jest.resetModules();
+            const module = await import('../../src/services/logging_service.js');
+            const logger = module.default.default;
+            expect(logger).toBe(mockDefaultLoggerInstance);
+            expect(consoleLogSpy).toHaveBeenCalledWith('Logger "bunn" not found, defaulting to "default" logger.');
+            consoleLogSpy.mockRestore();
+        });
+
         it('should return the same logger instance on subsequent calls', () => {
             const logger1 = LOGGER.default;
             const logger2 = LOGGER.default;

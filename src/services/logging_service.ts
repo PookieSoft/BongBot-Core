@@ -16,18 +16,18 @@ import FileLogger from '../loggers/file_logger.js';
  * LOGGER.default.info('hello world');
  * ```
  */
+
 export default {
     /**
-     * The active `Logger` implementation. Returns the file-backed logger
-     * when `DEFAULT_LOGGER=file` (useful for local dev), the Bun-backed
-     * {@link BunLogger} when `DEFAULT_LOGGER=bun` (for projects running
-     * under the Bun runtime), otherwise the SQLite-backed {@link DefaultLogger}.
+     * The active `Logger` implementation, resolved via the `DEFAULT_LOGGER`
+     * env var against the registry in {@link LoggerService}. Built-in keys:
+     * - `default` — SQLite-backed {@link DefaultLogger} (also used when the
+     *   env var is unset or refers to an unknown logger)
+     * - `file` — {@link FileLogger}, useful for local dev
+     * - `bun` — {@link BunLogger}, for projects running under the Bun runtime
      */
     get default(): Logger {
-        const loggerService = LoggerService.getInstance();
-        if (process.env.DEFAULT_LOGGER === 'file') return loggerService.getFileLogger(); /** use environment variable to switch loggers for local dev */
-        if (process.env.DEFAULT_LOGGER === 'bun') return loggerService.getBunLogger();
-        return loggerService.getDefaultLogger();
+        return LoggerService.getInstance().getLogger(process.env.DEFAULT_LOGGER || 'default');
     },
     /**
      * Legacy log shim — prefer `LOGGER.default.info/debug/error` in new code.
@@ -61,6 +61,12 @@ class LoggerService {
     private static instance: LoggerService;
     private connections: Map<string, Logger> = new Map();
 
+    private loggerMapping: { [key: string]: new () => Logger } = {
+        'default': DefaultLogger,
+        'bun': BunLogger,
+        'file': FileLogger,
+    };
+
     private constructor() {}
 
     static getInstance(): LoggerService {
@@ -70,25 +76,15 @@ class LoggerService {
         return LoggerService.instance;
     }
 
-    getDefaultLogger(): Logger {
-        if (!this.connections.has('default')) {
-            this.connections.set('default', new DefaultLogger());
+    getLogger(name: string): Logger {
+        if (!this.loggerMapping[name]) {
+            console.log(`Logger "${name}" not found, defaulting to "default" logger.`);
+            return this.getLogger('default');
         }
-        return this.connections.get('default')!;
-    }
-
-    getBunLogger(): Logger {
-        if (!this.connections.has('bun')) {
-            this.connections.set('bun', new BunLogger());
+        if (!this.connections.has(name)) {
+            this.connections.set(name, new this.loggerMapping[name]());
         }
-        return this.connections.get('bun')!;
-    }
-
-    getFileLogger (): Logger {
-        if (!this.connections.has('file')) {
-            this.connections.set('file', new FileLogger());
-        }
-        return this.connections.get('file')!;
+        return this.connections.get(name)!;
     }
 
     closeAll(): void {
