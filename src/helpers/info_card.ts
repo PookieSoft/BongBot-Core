@@ -77,6 +77,7 @@ export const getRepoInfoFromAPI = async (owner: string, repo: string) => {
  */
 export const generateCard = async (bot: ExtendedClient) => {
     const info = bot.deploymentInfo!;
+    const isBun = typeof Bun !== 'undefined';
     return new EmbedBuilder()
         .setTitle('🤖 BongBot Info Card')
         .setColor(Colors.Purple)
@@ -85,7 +86,7 @@ export const generateCard = async (bot: ExtendedClient) => {
         .addFields(
             { name: '📂 Repository', value: `[${info.owner}/${info.repo}](${info.repoUrl})`, inline: false },
             { name: '⏱️ Last Started', value: `<t:${timestamp}:f>`, inline: true },
-            { name: '📦 Node.js', value: `${process.versions.node}`, inline: true },
+            { name: `📦 ${isBun ? 'Bun' : 'Node.js'}`, value: `${isBun ? Bun.version : process.versions.node}`, inline: true },
             { name: '📚 Library', value: 'discord.js', inline: true }
         )
         .setFooter({ text: `BongBot • ${process.env.ENV === 'prod' ? info.tag : 'dev build' }`, iconURL: bot.user?.displayAvatarURL() })
