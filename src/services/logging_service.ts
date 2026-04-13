@@ -29,7 +29,7 @@ export default {
      * - `bun` — {@link BunLogger}, for projects running under the Bun runtime
      */
     get default(): Logger {
-        return LoggerService.getInstance().getLogger(process.env.DEFAULT_LOGGER || 'default');
+        return LoggerService.getInstance().getLogger(process.env.DEFAULT_LOGGER || FALLBACK_LOGGER);
     },
     /**
      * Legacy log shim — prefer `LOGGER.default.info/debug/error` in new code.
