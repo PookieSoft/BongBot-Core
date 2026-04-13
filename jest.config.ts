@@ -15,6 +15,7 @@ const config: Config = {
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
     '^@pookiesoft/bongbot-core/runtime-logger$': '<rootDir>/src/loggers/node_logger',
+    "^bun:sqlite$": "<rootDir>/tests/mocks/bun-sqlite.ts",
   },
 
   // ✅ Optional resolver for tsconfig paths

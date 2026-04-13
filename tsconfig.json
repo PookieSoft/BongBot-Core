@@ -17,6 +17,6 @@
         "noImplicitReturns": false,
         "noFallthroughCasesInSwitch": true
     },
-    "include": ["src/**/*"],
+    "include": ["src/**/*", "bun-sqlite.d.ts"],
     "exclude": ["node_modules", "dist"]
 }

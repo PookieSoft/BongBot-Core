@@ -24,13 +24,8 @@ const MockBunDatabase = jest.fn(() => ({
     close: mockBunClose,
 }));
 
-const mockRequireFn = jest.fn((id: string) => {
-    if (id === 'bun:sqlite') return { Database: MockBunDatabase };
-    throw new Error(`Unexpected require: ${id}`);
-});
-
-jest.unstable_mockModule('module', () => ({
-    createRequire: jest.fn(() => mockRequireFn),
+jest.unstable_mockModule('bun:sqlite', () => ({
+    Database: MockBunDatabase,
 }));
 
 describe('BunLogger', () => {
@@ -65,9 +60,8 @@ describe('BunLogger', () => {
     });
 
     describe('constructor', () => {
-        it('should load bun:sqlite lazily via createRequire', () => {
+        it('should load bun:sqlite and create database with correct path', () => {
             new BunLogger();
-            expect(mockRequireFn).toHaveBeenCalledWith('bun:sqlite');
             expect(MockBunDatabase).toHaveBeenCalledWith(expect.stringContaining(`${mockCurrentDateISO}.db`));
         });
 

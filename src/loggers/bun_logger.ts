@@ -1,12 +1,8 @@
 import path from 'path';
-import { createRequire } from 'module';
 import 'source-map-support/register.js';
+import { Database } from 'bun:sqlite';
 import Utilities from '../helpers/utilities.js';
-import { SqliteDatabase, SqliteLogger } from './sqlite_logger.js';
-
-type BunSqliteModule = {
-    Database: new (filename: string) => SqliteDatabase;
-};
+import { SqliteLogger } from './sqlite_logger.js';
 
 /**
  * @class BunLogger
@@ -14,14 +10,10 @@ type BunSqliteModule = {
  * Logs are stored in the 'logs' directory with a database file named after the current date (YYYY-MM-DD.db).
  * If database logging fails, it falls back to a legacy file-based logging mechanism.
  *
- * The `bun:sqlite` module is loaded lazily inside the constructor via `createRequire`
- * so that this file remains safe to import under Node — instantiating `BunLogger`
- * outside of Bun will throw, but merely importing it will not.
+ * Only bundled in Bun targets via conditional exports.
  */
 export default class BunLogger extends SqliteLogger {
     constructor() {
-        const requireFn = createRequire(import.meta.url);
-        const { Database } = requireFn('bun:sqlite') as BunSqliteModule;
         const logsDir = path.join(process.cwd(), 'logs');
         const dbPath = path.join(logsDir, `${Utilities.getCurrentDateISO()}.db`);
         console.log('Initializing BunLogger with DB path:', dbPath);
