@@ -2,7 +2,7 @@
     "compilerOptions": {
         "target": "ESNext",
         "module": "nodenext",
-        "moduleResolution": "nodenext",
+        "moduleResolution": "bundler",
         "lib": ["ESNext", "DOM"],
         "outDir": "./dist",
         "rootDir": "./src",
@@ -15,8 +15,9 @@
         "forceConsistentCasingInFileNames": true,
         "isolatedModules": true,
         "noImplicitReturns": false,
-        "noFallthroughCasesInSwitch": true
+        "noFallthroughCasesInSwitch": true,
+        "types": ["bun-types", "jest", "node"],
     },
-    "include": ["src/**/*", "bun-sqlite.d.ts"],
+    "include": ["src/**/*"],
     "exclude": ["node_modules", "dist"]
 }
