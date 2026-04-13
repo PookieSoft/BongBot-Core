@@ -7,20 +7,20 @@ import Utilities from '../helpers/utilities.js';
 import { ChatInputCommandInteraction } from 'discord.js';
 
 /**
- * @class DefaultLogger
+ * @class NodeLogger
  * Default logger implementation using SQLite database to store logs.
  * Logs are stored in the 'logs' directory with a database file named after the current date (YYYY-MM-DD.db).
  * If database logging fails, it falls back to a legacy file-based logging mechanism.
  * Logs include session ID, timestamp, message, stack trace, and log level.
  */
-export default class DefaultLogger implements Logger {
+export default class NodeLogger implements Logger {
     private db: BetterSqlite3.Database;
     private stmt: BetterSqlite3.Statement;
 
     constructor() {
         const logsDir = path.join(process.cwd(), 'logs');
         const dbPath = path.join(logsDir, `${Utilities.getCurrentDateISO()}.db`);
-        console.log('Initializing DefaultLogger with DB path:', dbPath);
+        console.log('Initializing NodeLogger with DB path:', dbPath);
         this.db = new BetterSqlite3(dbPath);
         const createTableSQL = `
             CREATE TABLE IF NOT EXISTS logs (

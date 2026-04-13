@@ -1,10 +1,10 @@
 import { Logger } from '../helpers/interfaces.js';
 import BunLogger from '../loggers/bun_logger.js';
-import DefaultLogger from '../loggers/default_logger.js';
 import FileLogger from '../loggers/file_logger.js';
+import NodeLogger from '../loggers/node_logger.js';
 
 const isBun = "Bun" in globalThis;
-const FALLBACK_LOGGER = (isBun ? 'bun' : 'default');
+const FALLBACK_LOGGER = (isBun ? 'bun' : 'node');
 /**
  * Central logging surface used by BongBot and its dependents.
  *
@@ -23,10 +23,11 @@ export default {
     /**
      * The active `Logger` implementation, resolved via the `DEFAULT_LOGGER`
      * env var against the registry in {@link LoggerService}. Built-in keys:
-     * - `default` — SQLite-backed {@link DefaultLogger} (also used when the
-     *   env var is unset or refers to an unknown logger)
+     * - `node` — SQLite-backed {@link NodeLogger} (also used when the
+     *   env var is unset or refers to an unknown logger on the node runtime)
      * - `file` — {@link FileLogger}, useful for local dev
-     * - `bun` — {@link BunLogger}, for projects running under the Bun runtime
+     * - `bun` — SQLite-backed {@link BunLogger} (also used when the
+     *   env var is unset or refers to an unknown logger on the bun runtime)
      */
     get default(): Logger {
         return LoggerService.getInstance().getLogger(process.env.DEFAULT_LOGGER || FALLBACK_LOGGER);
@@ -64,7 +65,7 @@ class LoggerService {
     private connections: Map<string, Logger> = new Map();
 
     private loggerMapping: { [key: string]: new () => Logger } = {
-        'default': DefaultLogger,
+        'node': NodeLogger,
         'bun': BunLogger,
         'file': FileLogger,
     };
@@ -80,7 +81,7 @@ class LoggerService {
 
     getLogger(name: string): Logger {
         let targetName = name;
-        const isIncompatible = (isBun && name === 'default') || (!isBun && name === 'bun');
+        const isIncompatible = (isBun && name === 'node') || (!isBun && name === 'bun');
         
         if (!this.loggerMapping[targetName] || isIncompatible) {
             const reason = !this.loggerMapping[targetName] ? "not found" : "runtime incompatible";
