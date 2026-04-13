@@ -15,8 +15,16 @@ const mockFileLoggerInstance: Logger = {
     close: jest.fn(),
 };
 
+const mockBunLoggerInstance: Logger = {
+    info: jest.fn(),
+    debug: jest.fn(),
+    error: jest.fn(),
+    close: jest.fn(),
+};
+
 const MockDefaultLogger = jest.fn(() => mockDefaultLoggerInstance);
 const MockFileLogger = jest.fn(() => mockFileLoggerInstance);
+const MockBunLogger = jest.fn(() => mockBunLoggerInstance);
 
 jest.unstable_mockModule('../../src/loggers/default_logger.js', () => ({
     default: MockDefaultLogger,
@@ -24,6 +32,10 @@ jest.unstable_mockModule('../../src/loggers/default_logger.js', () => ({
 
 jest.unstable_mockModule('../../src/loggers/file_logger.js', () => ({
     default: MockFileLogger,
+}));
+
+jest.unstable_mockModule('../../src/loggers/bun_logger.js', () => ({
+    default: MockBunLogger,
 }));
 
 describe('LoggingService', () => {
@@ -62,6 +74,14 @@ describe('LoggingService', () => {
             const module = await import('../../src/services/logging_service.js');
             const logger = module.default.default;
             expect(logger).toBe(mockFileLoggerInstance);
+        });
+
+        it('should return the bun logger when DEFAULT_LOGGER is set to "bun"', async () => {
+            process.env.DEFAULT_LOGGER = 'bun';
+            jest.resetModules();
+            const module = await import('../../src/services/logging_service.js');
+            const logger = module.default.default;
+            expect(logger).toBe(mockBunLoggerInstance);
         });
 
         it('should return the same logger instance on subsequent calls', () => {
@@ -110,6 +130,16 @@ describe('LoggingService', () => {
             const logger1 = module.default.default;
             const logger2 = module.default.default;
             expect(logger1).toBe(logger2);
+        });
+
+        it('should reuse existing bun logger connection', async () => {
+            process.env.DEFAULT_LOGGER = 'bun';
+            jest.resetModules();
+            const module = await import('../../src/services/logging_service.js');
+            const logger1 = module.default.default;
+            const logger2 = module.default.default;
+            expect(logger1).toBe(logger2);
+            expect(MockBunLogger).toHaveBeenCalledTimes(1);
         });
 
         it('should create separate instances for default and file loggers', async () => {

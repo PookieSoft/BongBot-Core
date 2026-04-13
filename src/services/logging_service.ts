@@ -1,4 +1,5 @@
 import { Logger } from '../helpers/interfaces.js';
+import BunLogger from '../loggers/bun_logger.js';
 import DefaultLogger from '../loggers/default_logger.js';
 import FileLogger from '../loggers/file_logger.js';
 
@@ -18,12 +19,14 @@ import FileLogger from '../loggers/file_logger.js';
 export default {
     /**
      * The active `Logger` implementation. Returns the file-backed logger
-     * when `DEFAULT_LOGGER=file` (useful for local dev), otherwise the
-     * SQLite-backed {@link DefaultLogger}.
+     * when `DEFAULT_LOGGER=file` (useful for local dev), the Bun-backed
+     * {@link BunLogger} when `DEFAULT_LOGGER=bun` (for projects running
+     * under the Bun runtime), otherwise the SQLite-backed {@link DefaultLogger}.
      */
     get default(): Logger {
         const loggerService = LoggerService.getInstance();
         if (process.env.DEFAULT_LOGGER === 'file') return loggerService.getFileLogger(); /** use environment variable to switch loggers for local dev */
+        if (process.env.DEFAULT_LOGGER === 'bun') return loggerService.getBunLogger();
         return loggerService.getDefaultLogger();
     },
     /**
@@ -72,6 +75,13 @@ class LoggerService {
             this.connections.set('default', new DefaultLogger());
         }
         return this.connections.get('default')!;
+    }
+
+    getBunLogger(): Logger {
+        if (!this.connections.has('bun')) {
+            this.connections.set('bun', new BunLogger());
+        }
+        return this.connections.get('bun')!;
     }
 
     getFileLogger (): Logger {
