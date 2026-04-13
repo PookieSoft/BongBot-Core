@@ -83,12 +83,9 @@ class LoggerService {
         const isIncompatible = (isBun && name === 'default') || (!isBun && name === 'bun');
         
         if (!this.loggerMapping[targetName] || isIncompatible) {
-
             const reason = !this.loggerMapping[targetName] ? "not found" : "runtime incompatible";
-            if (targetName !== FALLBACK_LOGGER) {
-                console.warn(`Logger "${targetName}" is ${reason}, switching to "${FALLBACK_LOGGER}".`);
-                targetName = FALLBACK_LOGGER;
-            }
+            console.warn(`Logger "${targetName}" is ${reason}, switching to "${FALLBACK_LOGGER}".`);
+            targetName = FALLBACK_LOGGER;
         }
         if (!this.loggerMapping[targetName]) {
             targetName = Object.keys(this.loggerMapping)[0];
