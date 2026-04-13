@@ -51,6 +51,25 @@ export default {
         logger.debug(typeof error === 'string' ? error : JSON.stringify(error));
     },
     /**
+     * Registers a custom logger implementation under `name`, making it
+     * selectable via the `DEFAULT_LOGGER` env var or a future `register` call.
+     * Registering under an existing key replaces that entry.
+     *
+     * @example
+     * ```ts
+     * import { LOGGER } from 'bongbot-core';
+     * LOGGER.register('my-logger', MyLogger);
+     * process.env.DEFAULT_LOGGER = 'my-logger';
+     * LOGGER.default.info('using custom logger');
+     * ```
+     *
+     * @param name    The key used to select this logger.
+     * @param LoggerClass  A zero-argument constructor that produces a {@link Logger}.
+     */
+    register(name: string, LoggerClass: new () => Logger) {
+        LoggerService.getInstance().register(name, LoggerClass);
+    },
+    /**
      * Closes every cached logger connection. Call this during graceful
      * shutdown or between test cases to release SQLite handles and file
      * descriptors.
@@ -64,13 +83,13 @@ class LoggerService {
     private static instance: LoggerService;
     private connections: Map<string, Logger> = new Map();
 
-    private loggerMapping: { [key: string]: new () => Logger } = {
-        'node': NodeLogger,
-        'bun': BunLogger,
-        'file': FileLogger,
-    };
+    private loggerMapping: { [key: string]: new () => Logger } = {};
 
-    private constructor() {}
+    private constructor() {
+        this.register('bun', BunLogger);
+        this.register('file', FileLogger);
+        this.register('node', NodeLogger);
+    }
 
     static getInstance(): LoggerService {
         if (!LoggerService.instance) {
@@ -94,6 +113,10 @@ class LoggerService {
         }
 
         return this.connections.get(targetName)!;
+    }
+
+    register(name: string, LoggerClass: new () => Logger): void {
+        this.loggerMapping[name] = LoggerClass;
     }
 
     closeAll(): void {

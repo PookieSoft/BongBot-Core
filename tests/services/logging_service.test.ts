@@ -265,4 +265,58 @@ describe('LoggingService', () => {
             expect(MockNodeLogger).toHaveBeenCalledTimes(1);
         });
     });
+
+    describe('register method', () => {
+        it('should make a registered logger selectable via DEFAULT_LOGGER', () => {
+            const mockCustomInstance: Logger = { info: jest.fn(), debug: jest.fn(), error: jest.fn() };
+            const MockCustomLogger = jest.fn(() => mockCustomInstance);
+
+            LOGGER.register('custom', MockCustomLogger as unknown as new () => Logger);
+            process.env.DEFAULT_LOGGER = 'custom';
+
+            expect(LOGGER.default).toBe(mockCustomInstance);
+            expect(MockCustomLogger).toHaveBeenCalledTimes(1);
+        });
+
+        it('should reuse the connection for a registered logger', () => {
+            const mockCustomInstance: Logger = { info: jest.fn(), debug: jest.fn(), error: jest.fn() };
+            const MockCustomLogger = jest.fn(() => mockCustomInstance);
+
+            LOGGER.register('custom', MockCustomLogger as unknown as new () => Logger);
+            process.env.DEFAULT_LOGGER = 'custom';
+
+            const logger1 = LOGGER.default;
+            const logger2 = LOGGER.default;
+
+            expect(logger1).toBe(logger2);
+            expect(MockCustomLogger).toHaveBeenCalledTimes(1);
+        });
+
+        it('should replace an existing entry when registered under the same name', () => {
+            const mockFirstInstance: Logger = { info: jest.fn(), debug: jest.fn(), error: jest.fn() };
+            const MockFirstLogger = jest.fn(() => mockFirstInstance);
+            const mockSecondInstance: Logger = { info: jest.fn(), debug: jest.fn(), error: jest.fn() };
+            const MockSecondLogger = jest.fn(() => mockSecondInstance);
+
+            LOGGER.register('custom', MockFirstLogger as unknown as new () => Logger);
+            LOGGER.register('custom', MockSecondLogger as unknown as new () => Logger);
+            process.env.DEFAULT_LOGGER = 'custom';
+
+            expect(LOGGER.default).toBe(mockSecondInstance);
+        });
+
+        it('should include registered loggers in closeAll', () => {
+            const mockClose = jest.fn();
+            const mockCustomInstance: Logger = { info: jest.fn(), debug: jest.fn(), error: jest.fn(), close: mockClose };
+            const MockCustomLogger = jest.fn(() => mockCustomInstance);
+
+            LOGGER.register('custom', MockCustomLogger as unknown as new () => Logger);
+            process.env.DEFAULT_LOGGER = 'custom';
+            LOGGER.default;
+
+            LOGGER.closeAll();
+
+            expect(mockClose).toHaveBeenCalled();
+        });
+    });
 });
