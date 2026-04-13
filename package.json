@@ -10,6 +10,12 @@
             "types": "./dist/index.d.ts",
             "import": "./dist/index.js"
         },
+        "./runtime-logger": {
+            "types": "./dist/loggers/node_logger.d.ts",
+            "bun":     "./dist/loggers/bun_logger.js",
+            "node":    "./dist/loggers/node_logger.js",
+            "default": "./dist/loggers/node_logger.js"
+        },
         "./package.json": "./package.json"
     },
     "publishConfig": {

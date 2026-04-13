@@ -1,10 +1,8 @@
 import { Logger } from '../helpers/interfaces.js';
-import BunLogger from '../loggers/bun_logger.js';
 import FileLogger from '../loggers/file_logger.js';
-import NodeLogger from '../loggers/node_logger.js';
+import RuntimeLogger from '@pookiesoft/bongbot-core/runtime-logger';
 
 const isBun = "Bun" in globalThis;
-const FALLBACK_LOGGER = (isBun ? 'bun' : 'node');
 /**
  * Central logging surface used by BongBot and its dependents.
  *
@@ -23,14 +21,17 @@ export default {
     /**
      * The active `Logger` implementation, resolved via the `DEFAULT_LOGGER`
      * env var against the registry in {@link LoggerService}. Built-in keys:
-     * - `node` — SQLite-backed {@link NodeLogger} (also used when the
-     *   env var is unset or refers to an unknown logger on the node runtime)
-     * - `file` — {@link FileLogger}, useful for local dev
-     * - `bun` — SQLite-backed {@link BunLogger} (also used when the
-     *   env var is unset or refers to an unknown logger on the bun runtime)
+     * - `node` — SQLite-backed logger used on the Node runtime. Resolved at
+     *   bundle time via the `./runtime-logger` conditional export.
+     * - `bun` — SQLite-backed logger used on the Bun runtime. Resolved at
+     *   bundle time via the `./runtime-logger` conditional export.
+     * - `file` — {@link FileLogger}, useful for local dev.
+     *
+     * Only the runtime-appropriate SQLite logger is registered, so the wrong
+     * implementation is never present in a bundled build.
      */
     get default(): Logger {
-        return LoggerService.getInstance().getLogger(process.env.DEFAULT_LOGGER || FALLBACK_LOGGER);
+        return LoggerService.getInstance().getLogger(process.env.DEFAULT_LOGGER || 'default');
     },
     /**
      * Legacy log shim — prefer `LOGGER.default.info/debug/error` in new code.
@@ -86,9 +87,8 @@ class LoggerService {
     private loggerMapping: { [key: string]: new () => Logger } = {};
 
     private constructor() {
-        this.register('bun', BunLogger);
+        this.register('default', RuntimeLogger);
         this.register('file', FileLogger);
-        this.register('node', NodeLogger);
     }
 
     static getInstance(): LoggerService {
@@ -104,8 +104,8 @@ class LoggerService {
         
         if (!this.loggerMapping[targetName] || isIncompatible) {
             const reason = !this.loggerMapping[targetName] ? "not found" : "runtime incompatible";
-            console.warn(`Logger "${targetName}" is ${reason}, switching to "${FALLBACK_LOGGER}".`);
-            targetName = FALLBACK_LOGGER;
+            console.warn(`Logger "${targetName}" is ${reason}, switching to "default".`);
+            targetName = 'default';
         }
         if (!this.connections.has(targetName)) {
             const LoggerClass = this.loggerMapping[targetName];
