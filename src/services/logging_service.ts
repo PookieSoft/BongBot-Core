@@ -3,6 +3,8 @@ import BunLogger from '../loggers/bun_logger.js';
 import DefaultLogger from '../loggers/default_logger.js';
 import FileLogger from '../loggers/file_logger.js';
 
+const isBun = "Bun" in globalThis;
+const FALLBACK_LOGGER = (isBun ? 'bun' : 'default');
 /**
  * Central logging surface used by BongBot and its dependents.
  *
@@ -77,14 +79,26 @@ class LoggerService {
     }
 
     getLogger(name: string): Logger {
-        if (!this.loggerMapping[name]) {
-            console.log(`Logger "${name}" not found, defaulting to "default" logger.`);
-            return this.getLogger('default');
+        let targetName = name;
+        const isIncompatible = (isBun && name === 'default') || (!isBun && name === 'bun');
+        
+        if (!this.loggerMapping[targetName] || isIncompatible) {
+
+            const reason = !this.loggerMapping[targetName] ? "not found" : "runtime incompatible";
+            if (targetName !== FALLBACK_LOGGER) {
+                console.warn(`Logger "${targetName}" is ${reason}, switching to "${FALLBACK_LOGGER}".`);
+                targetName = FALLBACK_LOGGER;
+            }
         }
-        if (!this.connections.has(name)) {
-            this.connections.set(name, new this.loggerMapping[name]());
+        if (!this.loggerMapping[targetName]) {
+            targetName = Object.keys(this.loggerMapping)[0];
         }
-        return this.connections.get(name)!;
+        if (!this.connections.has(targetName)) {
+            const LoggerClass = this.loggerMapping[targetName];
+            this.connections.set(targetName, new LoggerClass());
+        }
+
+        return this.connections.get(targetName)!;
     }
 
     closeAll(): void {
