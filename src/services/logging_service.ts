@@ -88,9 +88,6 @@ class LoggerService {
             console.warn(`Logger "${targetName}" is ${reason}, switching to "${FALLBACK_LOGGER}".`);
             targetName = FALLBACK_LOGGER;
         }
-        if (!this.loggerMapping[targetName]) {
-            targetName = Object.keys(this.loggerMapping)[0];
-        }
         if (!this.connections.has(targetName)) {
             const LoggerClass = this.loggerMapping[targetName];
             this.connections.set(targetName, new LoggerClass());
