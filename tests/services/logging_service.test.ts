@@ -91,6 +91,26 @@ describe('LoggingService', () => {
             expect(logger1).toBe(logger2);
             expect(MockRuntimeLogger).toHaveBeenCalledTimes(1);
         });
+
+        it('should warn when requesting node logger in simulated Bun runtime', async () => {
+            const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+            // Set globalThis.Bun before resetting modules so the new module sees it
+            (globalThis as any).Bun = {};
+            process.env.DEFAULT_LOGGER = 'node';
+            jest.resetModules();
+            const module = await import('../../src/services/logging_service.js');
+            // Register a 'node' logger
+            const mockNodeLogger = jest.fn(() => mockFileLoggerInstance);
+            module.default.register('node', mockNodeLogger);
+            // Request the Node logger in "Bun" runtime - should be incompatible
+            const logger = module.default.default;
+            // Verify the logger was not instantiated (fallback to default instead)
+            expect(mockNodeLogger).not.toHaveBeenCalled();
+            expect(consoleWarnSpy).toHaveBeenCalledWith('Logger "node" is runtime incompatible, switching to "default".');
+            // Clean up
+            delete (globalThis as any).Bun;
+            consoleWarnSpy.mockRestore();
+        });
     });
 
     describe('log method', () => {
