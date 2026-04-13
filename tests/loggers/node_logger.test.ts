@@ -25,8 +25,8 @@ jest.unstable_mockModule('fs/promises', () => ({
     appendFile: mockAppendFile,
 }));
 
-describe('DefaultLogger', () => {
-    let DefaultLogger: typeof import('../../src/loggers/default_logger.js').default;
+describe('NodeLogger', () => {
+    let NodeLogger: typeof import('../../src/loggers/node_logger.js').default;
     let mockDb: any;
     let mockRun: jest.Mock;
     let mockPrepare: jest.Mock;
@@ -60,8 +60,8 @@ describe('DefaultLogger', () => {
         consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
         jest.resetModules();
-        const module = await import('../../src/loggers/default_logger.js');
-        DefaultLogger = module.default;
+        const module = await import('../../src/loggers/node_logger.js');
+        NodeLogger = module.default;
     });
 
     afterEach(() => {
@@ -75,20 +75,20 @@ describe('DefaultLogger', () => {
 
     describe('constructor', () => {
         it('should initialize the database and create logs table', () => {
-            new DefaultLogger();
+            new NodeLogger();
             expect(mockDb.exec).toHaveBeenCalledWith(expect.stringContaining('CREATE TABLE IF NOT EXISTS logs'));
             expect(mockPrepare).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO logs'));
         });
 
         it('should log the initialization message to console', () => {
-            new DefaultLogger();
-            expect(consoleLogSpy).toHaveBeenCalledWith('Initializing DefaultLogger with DB path:', expect.stringContaining(`${mockCurrentDateISO}.db`));
+            new NodeLogger();
+            expect(consoleLogSpy).toHaveBeenCalledWith('Initializing NodeLogger with DB path:', expect.stringContaining(`${mockCurrentDateISO}.db`));
         });
     });
 
     describe('info', () => {
         it('should insert log entry with INFO level and print to console', () => {
-            const logger = new DefaultLogger();
+            const logger = new NodeLogger();
             logger.info('Test info message');
 
             expect(mockRun).toHaveBeenCalledWith('Test info message', null, 'INFO', 'test-session-id-123', null);
@@ -96,14 +96,14 @@ describe('DefaultLogger', () => {
         });
 
         it('should handle optional stack parameter', () => {
-            const logger = new DefaultLogger();
+            const logger = new NodeLogger();
             logger.info('Test info message', 'Stack trace here');
 
             expect(mockRun).toHaveBeenCalledWith('Test info message', 'Stack trace here', 'INFO', 'test-session-id-123', null);
         });
 
         it('should include correlation id when interaction is provided', () => {
-            const logger = new DefaultLogger();
+            const logger = new NodeLogger();
             const mockInteraction = { id: 'interaction-abc-123' } as any;
             logger.info('Test info message', undefined, mockInteraction);
 
@@ -113,7 +113,7 @@ describe('DefaultLogger', () => {
 
     describe('debug', () => {
         it('should insert log entry with DEBUG level and print to console', () => {
-            const logger = new DefaultLogger();
+            const logger = new NodeLogger();
             logger.debug('Test debug message');
 
             expect(mockRun).toHaveBeenCalledWith('Test debug message', null, 'DEBUG', 'test-session-id-123', null);
@@ -121,14 +121,14 @@ describe('DefaultLogger', () => {
         });
 
         it('should handle optional stack parameter', () => {
-            const logger = new DefaultLogger();
+            const logger = new NodeLogger();
             logger.debug('Test debug message', 'Debug stack');
 
             expect(mockRun).toHaveBeenCalledWith('Test debug message', 'Debug stack', 'DEBUG', 'test-session-id-123', null);
         });
 
         it('should include correlation id when interaction is provided', () => {
-            const logger = new DefaultLogger();
+            const logger = new NodeLogger();
             const mockInteraction = { id: 'interaction-abc-123' } as any;
             logger.debug('Test debug message', undefined, mockInteraction);
 
@@ -138,7 +138,7 @@ describe('DefaultLogger', () => {
 
     describe('error', () => {
         it('should insert log entry with ERROR level and print to console', () => {
-            const logger = new DefaultLogger();
+            const logger = new NodeLogger();
             const testError = new Error('Test error message');
             testError.stack = 'Error stack trace';
 
@@ -149,7 +149,7 @@ describe('DefaultLogger', () => {
         });
 
         it('should handle error without stack', () => {
-            const logger = new DefaultLogger();
+            const logger = new NodeLogger();
             const testError = new Error('Test error message');
             delete testError.stack;
 
@@ -159,7 +159,7 @@ describe('DefaultLogger', () => {
         });
 
         it('should include correlation id when interaction is provided', () => {
-            const logger = new DefaultLogger();
+            const logger = new NodeLogger();
             const testError = new Error('Test error message');
             testError.stack = 'Error stack trace';
             const mockInteraction = { id: 'interaction-abc-123' } as any;
@@ -172,7 +172,7 @@ describe('DefaultLogger', () => {
 
     describe('close', () => {
         it('should close the database connection', () => {
-            const logger = new DefaultLogger();
+            const logger = new NodeLogger();
             logger.close();
 
             expect(mockDb.close).toHaveBeenCalled();
@@ -188,7 +188,7 @@ describe('DefaultLogger', () => {
             mockWriteFile.mockResolvedValue(undefined);
             mockAppendFile.mockResolvedValue(undefined);
 
-            const logger = new DefaultLogger();
+            const logger = new NodeLogger();
             logger.info('Fallback test message');
 
             expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to log to DB:', expect.any(Error), 'falling back to legacy file logger');
@@ -207,7 +207,7 @@ describe('DefaultLogger', () => {
             mockAccess.mockResolvedValue(undefined);
             mockAppendFile.mockResolvedValue(undefined);
 
-            const logger = new DefaultLogger();
+            const logger = new NodeLogger();
             logger.debug('Append test message');
 
             await new Promise(resolve => setTimeout(resolve, 10));
@@ -226,7 +226,7 @@ describe('DefaultLogger', () => {
             mockAccess.mockResolvedValue(undefined);
             mockAppendFile.mockRejectedValue(new Error('Append failed'));
 
-            const logger = new DefaultLogger();
+            const logger = new NodeLogger();
             logger.info('Append fail test');
 
             await new Promise(resolve => setTimeout(resolve, 10));
@@ -241,7 +241,7 @@ describe('DefaultLogger', () => {
             mockAccess.mockResolvedValue(undefined);
             mockAppendFile.mockResolvedValue(undefined);
 
-            const logger = new DefaultLogger();
+            const logger = new NodeLogger();
             logger.info('Message with stack', 'Stack trace content');
 
             await new Promise(resolve => setTimeout(resolve, 10));
@@ -260,7 +260,7 @@ describe('DefaultLogger', () => {
             mockAccess.mockRejectedValue(new Error('Access error'));
             mockWriteFile.mockRejectedValue(new Error('Write failed'));
 
-            const logger = new DefaultLogger();
+            const logger = new NodeLogger();
             logger.info('Test message');
 
             await new Promise(resolve => setTimeout(resolve, 10));
@@ -270,7 +270,7 @@ describe('DefaultLogger', () => {
         });
 
         it('should handle error object without message property', () => {
-            const logger = new DefaultLogger();
+            const logger = new NodeLogger();
             // Create an error-like object without message
             const errorWithoutMessage = { stack: 'Custom stack trace' } as unknown as Error;
             Object.defineProperty(errorWithoutMessage, 'message', { value: '' });
