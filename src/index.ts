@@ -10,7 +10,13 @@ export { default as Utilities } from './helpers/utilities.js';
 export { generateCard } from './helpers/info_card.js';
 
 // Interfaces
-export type { ExtendedClient, GithubBranchResponse, GithubTagResponse, GithubInfo, Logger } from './helpers/interfaces.js';
+export type {
+    ExtendedClient,
+    GithubBranchResponse,
+    GithubTagResponse,
+    GithubInfo,
+    Logger,
+} from './helpers/interfaces.js';
 
 // Services
 export { default as LOGGER } from './services/logging_service.js';

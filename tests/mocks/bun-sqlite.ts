@@ -1,5 +1,9 @@
 export class Database {
-  constructor(path: string) { /* mock logic */ }
-  run() {}
-  query() { return { get: () => ({}), all: () => [] }; }
+    constructor(path: string) {
+        /* mock logic */
+    }
+    run() {}
+    query() {
+        return { get: () => ({}), all: () => [] };
+    }
 }

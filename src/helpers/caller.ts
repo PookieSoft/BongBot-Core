@@ -1,4 +1,4 @@
-import LOGGER from '../services/logging_service.js'
+import LOGGER from '../services/logging_service.js';
 import dns from 'dns/promises';
 import net from 'node:net';
 import ipaddr from 'ipaddr.js';
@@ -67,7 +67,7 @@ export default { get, post };
 async function get(url: string, path?: string | null, params?: string | null, headers?: { [key: string]: any }) {
     const config = {
         method: 'GET',
-        headers: headers
+        headers: headers,
     };
     return await makeCallout(constructFullPath(url, path, params), config);
 }
@@ -75,7 +75,7 @@ async function post(url: string, path?: string | null, headers?: { [key: string]
     const config = {
         method: 'POST',
         headers: headers,
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
     };
     return await makeCallout(constructFullPath(url, path), config);
 }
@@ -86,19 +86,23 @@ function constructFullPath(url: string, path?: string | null, params?: string | 
 
 async function makeCallout(url: string, config: { [key: string]: any }): Promise<any> {
     let text: string | null;
-    let resp = await fetch(url, config).then(async response => {
-        if (response.ok) {
-            const contentLength = response.headers.get('content-length');
-            if (response.status === 204 || contentLength === '0') {
-                return null;
+    let resp = await fetch(url, config)
+        .then(async (response) => {
+            if (response.ok) {
+                const contentLength = response.headers.get('content-length');
+                if (response.status === 204 || contentLength === '0') {
+                    return null;
+                }
+                return await response.json();
             }
-            return await response.json();
-        }
-        text = await response.text();
-        throw new Error(`Network response was not ok: ${response.status} ${response.statusText} ${text}`);
-    }).finally(() => {
-        if (text) { LOGGER.log(`${text}`); }
-    });
+            text = await response.text();
+            throw new Error(`Network response was not ok: ${response.status} ${response.statusText} ${text}`);
+        })
+        .finally(() => {
+            if (text) {
+                LOGGER.log(`${text}`);
+            }
+        });
     return resp;
 }
 
@@ -116,7 +120,7 @@ async function validateServerUrl(serverUrl: string): Promise<void> {
 
     const allowedHosts = process.env.PTERODACTYL_ALLOWED_HOSTS;
     if (allowedHosts) {
-        const allowedList = allowedHosts.split(',').map(h => h.trim().toLowerCase());
+        const allowedList = allowedHosts.split(',').map((h) => h.trim().toLowerCase());
         if (!allowedList.includes(parsedUrl.hostname.toLowerCase())) {
             throw new Error('Server URL hostname is not in the allowed hosts list.');
         }
@@ -142,7 +146,7 @@ async function resolveHostnameToIPs(parsedUrl: URL): Promise<string[]> {
     } else {
         const [ipv4Result, ipv6Result] = await Promise.allSettled([
             dns.resolve4(parsedUrl.hostname),
-            dns.resolve6(parsedUrl.hostname)
+            dns.resolve6(parsedUrl.hostname),
         ]);
         const ipv4Addresses = ipv4Result.status === 'fulfilled' ? ipv4Result.value : [];
         const ipv6Addresses = ipv6Result.status === 'fulfilled' ? ipv6Result.value : [];
@@ -157,18 +161,18 @@ function isPrivateOrReservedIP(ip: string): boolean {
         const range = addr.range();
 
         const blockedRanges = [
-            'private', 
-            'uniqueLocal', 
-            'loopback', 
-            'linkLocal', 
-            'reserved', 
+            'private',
+            'uniqueLocal',
+            'loopback',
+            'linkLocal',
+            'reserved',
             'unspecified',
             'carrierGradeNat',
-            'broadcast'
+            'broadcast',
         ];
 
         return blockedRanges.includes(range);
     } catch (err) {
-        return true; 
+        return true;
     }
 }

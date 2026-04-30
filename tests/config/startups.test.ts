@@ -12,8 +12,13 @@ jest.unstable_mockModule('crypto', () => ({
 // ── Mock discord.js ────────────────────────────────────────────────────────────
 class MockSlashCommandBuilder {
     name: string = '';
-    setName(name: string) { this.name = name; return this; }
-    toJSON() { return { name: this.name }; }
+    setName(name: string) {
+        this.name = name;
+        return this;
+    }
+    toJSON() {
+        return { name: this.name };
+    }
 }
 
 jest.unstable_mockModule('discord.js', () => ({
@@ -114,13 +119,15 @@ async function triggerEvent(eventName: string, ...args: any[]) {
 }
 
 // ── Helper: create a mock interaction ─────────────────────────────────────────
-function buildMockInteraction(overrides: Partial<{
-    isCommand: boolean;
-    commandName: string;
-    replied: boolean;
-    response: any;
-    msgFlag: any;
-}> = {}) {
+function buildMockInteraction(
+    overrides: Partial<{
+        isCommand: boolean;
+        commandName: string;
+        replied: boolean;
+        response: any;
+        msgFlag: any;
+    }> = {}
+) {
     const {
         isCommand = true,
         commandName = 'test-cmd',
@@ -161,13 +168,8 @@ function createMockCollection(entries: [string, any][]) {
 }
 
 // ── Import the module under test (after all mocks are registered) ──────────────
-const {
-    basicStart,
-    startWithHandlers,
-    startWithFunctions,
-    startBot,
-    commandBuilder,
-} = await import('../../src/config/startups.js');
+const { basicStart, startWithHandlers, startWithFunctions, startBot, commandBuilder } =
+    await import('../../src/config/startups.js');
 
 // ══════════════════════════════════════════════════════════════════════════════
 describe('startups', () => {
@@ -205,8 +207,8 @@ describe('startups', () => {
                 execute: jest.fn<() => Promise<any>>(),
             };
             (validCommand.data as any).name = 'valid';
-            const invalidCmd = { 
-                data: null as unknown as SlashCommandBuilder, 
+            const invalidCmd = {
+                data: null as unknown as SlashCommandBuilder,
                 execute: jest.fn<() => Promise<any>>(),
             };
 
@@ -227,15 +229,11 @@ describe('startups', () => {
             (cmd1.data as any).name = 'cmd1';
             (cmd2.data as any).name = 'cmd2';
 
-            const result = commandBuilder(mockBotInstance, [
-                cmd1 as unknown as Command, 
-                cmd2 as unknown as Command
-            ]);
+            const result = commandBuilder(mockBotInstance, [cmd1 as unknown as Command, cmd2 as unknown as Command]);
 
             expect(result).toHaveLength(2);
             expect(mockBotInstance.commands.size).toBe(2);
         });
-
     });
 
     // ── startBot ────────────────────────────────────────────────────────────────
@@ -504,9 +502,7 @@ describe('startups', () => {
 
             expect(interaction.deleteReply).toHaveBeenCalledTimes(1);
             expect(mockBuildUnknownError).toHaveBeenCalledWith(thrownError);
-            expect(interaction.followUp).toHaveBeenCalledWith(
-                expect.objectContaining({ isError: true })
-            );
+            expect(interaction.followUp).toHaveBeenCalledWith(expect.objectContaining({ isError: true }));
         });
 
         test('should catch errors without deleteReply when interaction has not replied', async () => {
@@ -545,11 +541,14 @@ describe('startups', () => {
                 messages: {
                     fetch: jest.fn<any>().mockResolvedValue(
                         createMockCollection([
-                            ['msg1', {
-                                author: { id: 'bot-user-id' },
-                                embeds: [{ title: 'TestRepo', description: '' }],
-                                delete: jest.fn<any>().mockResolvedValue(undefined),
-                            }],
+                            [
+                                'msg1',
+                                {
+                                    author: { id: 'bot-user-id' },
+                                    embeds: [{ title: 'TestRepo', description: '' }],
+                                    delete: jest.fn<any>().mockResolvedValue(undefined),
+                                },
+                            ],
                         ])
                     ),
                 },
@@ -615,9 +614,7 @@ describe('startups', () => {
                 delete: mockDelete,
             };
 
-            mockChannel.messages.fetch.mockResolvedValueOnce(
-                createMockCollection([['msg-old', previousBotMessage]])
-            );
+            mockChannel.messages.fetch.mockResolvedValueOnce(createMockCollection([['msg-old', previousBotMessage]]));
 
             await triggerEvent('clientReady');
             expect(mockDelete).toHaveBeenCalledTimes(1);
@@ -689,7 +686,7 @@ describe('startups', () => {
             const weirdChannel = {
                 isTextBased: jest.fn(() => true),
                 // Explicitly omit 'send' or make it not a function
-                messages: { fetch: jest.fn() }
+                messages: { fetch: jest.fn() },
             };
             mockBotInstance.channels.fetch.mockResolvedValueOnce(weirdChannel);
 
@@ -699,6 +696,5 @@ describe('startups', () => {
             expect(mockGenerateCard).not.toHaveBeenCalled();
             expect(weirdChannel.messages.fetch).not.toHaveBeenCalled();
         });
-
     });
 });

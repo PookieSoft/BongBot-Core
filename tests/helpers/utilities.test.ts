@@ -19,7 +19,7 @@ describe('Utilities', () => {
         expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     });
 
-    test('getCurrentDateISO should return today\'s date', () => {
+    test("getCurrentDateISO should return today's date", () => {
         const result = Utilities.getCurrentDateISO();
         const expected = new Date().toISOString().slice(0, 10);
         expect(result).toBe(expected);

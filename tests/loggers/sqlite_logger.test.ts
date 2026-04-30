@@ -57,7 +57,9 @@ describe('SqliteLogger', () => {
         const { SqliteLogger } = await import('../../src/loggers/sqlite_logger.js');
 
         class TestLogger extends SqliteLogger {
-            constructor() { super(mockDb); }
+            constructor() {
+                super(mockDb);
+            }
         }
 
         logger = new TestLogger();
@@ -91,13 +93,25 @@ describe('SqliteLogger', () => {
 
         it('should pass stack when provided', () => {
             logger.info('Test info message', 'Stack trace here');
-            expect(mockRun).toHaveBeenCalledWith('Test info message', 'Stack trace here', 'INFO', 'test-session-id-123', null);
+            expect(mockRun).toHaveBeenCalledWith(
+                'Test info message',
+                'Stack trace here',
+                'INFO',
+                'test-session-id-123',
+                null
+            );
         });
 
         it('should include correlation id when interaction is provided', () => {
             const mockInteraction = { id: 'interaction-abc-123' } as any;
             logger.info('Test info message', undefined, mockInteraction);
-            expect(mockRun).toHaveBeenCalledWith('Test info message', null, 'INFO', 'test-session-id-123', 'interaction-abc-123');
+            expect(mockRun).toHaveBeenCalledWith(
+                'Test info message',
+                null,
+                'INFO',
+                'test-session-id-123',
+                'interaction-abc-123'
+            );
         });
     });
 
@@ -110,13 +124,25 @@ describe('SqliteLogger', () => {
 
         it('should pass stack when provided', () => {
             logger.debug('Test debug message', 'Debug stack');
-            expect(mockRun).toHaveBeenCalledWith('Test debug message', 'Debug stack', 'DEBUG', 'test-session-id-123', null);
+            expect(mockRun).toHaveBeenCalledWith(
+                'Test debug message',
+                'Debug stack',
+                'DEBUG',
+                'test-session-id-123',
+                null
+            );
         });
 
         it('should include correlation id when interaction is provided', () => {
             const mockInteraction = { id: 'interaction-abc-123' } as any;
             logger.debug('Test debug message', undefined, mockInteraction);
-            expect(mockRun).toHaveBeenCalledWith('Test debug message', null, 'DEBUG', 'test-session-id-123', 'interaction-abc-123');
+            expect(mockRun).toHaveBeenCalledWith(
+                'Test debug message',
+                null,
+                'DEBUG',
+                'test-session-id-123',
+                'interaction-abc-123'
+            );
         });
     });
 
@@ -125,8 +151,16 @@ describe('SqliteLogger', () => {
             const testError = new Error('Test error message');
             testError.stack = 'Error stack trace';
             logger.error(testError);
-            expect(mockRun).toHaveBeenCalledWith('Test error message', 'Error stack trace', 'ERROR', 'test-session-id-123', null);
-            expect(consoleErrorSpy).toHaveBeenCalledWith(`${mockFormattedDateTime} | An Error Occurred - check logs for details.`);
+            expect(mockRun).toHaveBeenCalledWith(
+                'Test error message',
+                'Error stack trace',
+                'ERROR',
+                'test-session-id-123',
+                null
+            );
+            expect(consoleErrorSpy).toHaveBeenCalledWith(
+                `${mockFormattedDateTime} | An Error Occurred - check logs for details.`
+            );
         });
 
         it('should handle error without stack', () => {
@@ -141,14 +175,26 @@ describe('SqliteLogger', () => {
             testError.stack = 'Error stack trace';
             const mockInteraction = { id: 'interaction-abc-123' } as any;
             logger.error(testError, mockInteraction);
-            expect(mockRun).toHaveBeenCalledWith('Test error message', 'Error stack trace', 'ERROR', 'test-session-id-123', 'interaction-abc-123');
+            expect(mockRun).toHaveBeenCalledWith(
+                'Test error message',
+                'Error stack trace',
+                'ERROR',
+                'test-session-id-123',
+                'interaction-abc-123'
+            );
         });
 
         it('should handle error object without message property', () => {
             const errorWithoutMessage = { stack: 'Custom stack trace' } as unknown as Error;
             Object.defineProperty(errorWithoutMessage, 'message', { value: '' });
             logger.error(errorWithoutMessage);
-            expect(mockRun).toHaveBeenCalledWith(expect.any(String), 'Custom stack trace', 'ERROR', 'test-session-id-123', null);
+            expect(mockRun).toHaveBeenCalledWith(
+                expect.any(String),
+                'Custom stack trace',
+                'ERROR',
+                'test-session-id-123',
+                null
+            );
         });
     });
 
@@ -161,29 +207,37 @@ describe('SqliteLogger', () => {
 
     describe('legacy fallback logging', () => {
         it('should fallback to file logging when DB insert fails', async () => {
-            mockRun.mockImplementation(() => { throw new Error('DB insert failed'); });
+            mockRun.mockImplementation(() => {
+                throw new Error('DB insert failed');
+            });
             mockAccess.mockRejectedValue(new Error('File not found'));
             mockWriteFile.mockResolvedValue(undefined);
             mockAppendFile.mockResolvedValue(undefined);
 
             logger.info('Fallback test message');
 
-            expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to log to DB:', expect.any(Error), 'falling back to legacy file logger');
+            expect(consoleErrorSpy).toHaveBeenCalledWith(
+                'Failed to log to DB:',
+                expect.any(Error),
+                'falling back to legacy file logger'
+            );
 
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise((resolve) => setTimeout(resolve, 10));
 
             expect(mockWriteFile).toHaveBeenCalledWith(expect.stringContaining('.log'), 'Logger Initialised\n\n');
             expect(mockAppendFile).toHaveBeenCalled();
         });
 
         it('should append to existing log file when it exists', async () => {
-            mockRun.mockImplementation(() => { throw new Error('DB insert failed'); });
+            mockRun.mockImplementation(() => {
+                throw new Error('DB insert failed');
+            });
             mockAccess.mockResolvedValue(undefined);
             mockAppendFile.mockResolvedValue(undefined);
 
             logger.debug('Append test message');
 
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise((resolve) => setTimeout(resolve, 10));
 
             expect(mockWriteFile).not.toHaveBeenCalled();
             expect(mockAppendFile).toHaveBeenCalledWith(
@@ -193,25 +247,29 @@ describe('SqliteLogger', () => {
         });
 
         it('should handle legacy append failure gracefully', async () => {
-            mockRun.mockImplementation(() => { throw new Error('DB insert failed'); });
+            mockRun.mockImplementation(() => {
+                throw new Error('DB insert failed');
+            });
             mockAccess.mockResolvedValue(undefined);
             mockAppendFile.mockRejectedValue(new Error('Append failed'));
 
             logger.info('Append fail test');
 
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise((resolve) => setTimeout(resolve, 10));
 
             expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to append to log file:', expect.any(Error));
         });
 
         it('should include stack trace in legacy log when present', async () => {
-            mockRun.mockImplementation(() => { throw new Error('DB insert failed'); });
+            mockRun.mockImplementation(() => {
+                throw new Error('DB insert failed');
+            });
             mockAccess.mockResolvedValue(undefined);
             mockAppendFile.mockResolvedValue(undefined);
 
             logger.info('Message with stack', 'Stack trace content');
 
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise((resolve) => setTimeout(resolve, 10));
 
             expect(mockAppendFile).toHaveBeenCalledWith(
                 expect.stringContaining('.log'),
@@ -220,13 +278,15 @@ describe('SqliteLogger', () => {
         });
 
         it('should handle logLegacy throwing an error', async () => {
-            mockRun.mockImplementation(() => { throw new Error('DB insert failed'); });
+            mockRun.mockImplementation(() => {
+                throw new Error('DB insert failed');
+            });
             mockAccess.mockRejectedValue(new Error('Access error'));
             mockWriteFile.mockRejectedValue(new Error('Write failed'));
 
             logger.info('Test message');
 
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise((resolve) => setTimeout(resolve, 10));
 
             expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to log to legacy file:', expect.any(Error));
         });

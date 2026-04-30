@@ -11,7 +11,9 @@ jest.unstable_mockModule('../../src/helpers/utilities.js', () => ({
 
 jest.unstable_mockModule('fs/promises', () => ({
     default: { access: jest.fn(), writeFile: jest.fn(), appendFile: jest.fn() },
-    access: jest.fn(), writeFile: jest.fn(), appendFile: jest.fn(),
+    access: jest.fn(),
+    writeFile: jest.fn(),
+    appendFile: jest.fn(),
 }));
 
 const mockBunRun = jest.fn();

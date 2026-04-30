@@ -106,7 +106,9 @@ describe('LoggingService', () => {
             const logger = module.default.default;
             // Verify the logger was not instantiated (fallback to default instead)
             expect(mockNodeLogger).not.toHaveBeenCalled();
-            expect(consoleWarnSpy).toHaveBeenCalledWith('Logger "node" is runtime incompatible, switching to "default".');
+            expect(consoleWarnSpy).toHaveBeenCalledWith(
+                'Logger "node" is runtime incompatible, switching to "default".'
+            );
             // Clean up
             delete (globalThis as any).Bun;
             consoleWarnSpy.mockRestore();
