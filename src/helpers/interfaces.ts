@@ -37,4 +37,3 @@ export interface Logger {
     error(error: Error, interaction?: ChatInputCommandInteraction): void;
     close?(): void;
 }
-

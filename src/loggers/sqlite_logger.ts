@@ -68,17 +68,27 @@ export abstract class SqliteLogger implements Logger {
             this.stmt.run(message, stack || null, level, process.env.SESSION_ID, interaction_id || null);
         } catch (err) {
             console.error('Failed to log to DB:', err, 'falling back to legacy file logger');
-            this.logLegacy(message, stack).catch((error) => { console.error('Failed to log to legacy file:', error); });
+            this.logLegacy(message, stack).catch((error) => {
+                console.error('Failed to log to legacy file:', error);
+            });
         }
     }
 
     private async logLegacy(message: string, stack: string | undefined): Promise<void> {
         const logsDir = path.join(process.cwd(), 'logs');
         const logFile = path.join(logsDir, `${Utilities.getCurrentDateISO()}.log`);
-        if (!await fsp.access(logFile).then(() => true).catch(() => false)) {
+        if (
+            !(await fsp
+                .access(logFile)
+                .then(() => true)
+                .catch(() => false))
+        ) {
             await fsp.writeFile(logFile, 'Logger Initialised\n\n');
         }
-        fsp.appendFile(logFile, `${Utilities.formatLocalDateTime()} | ${message}\n${stack ? stack + '\n' : ''}\n`).catch((err) => {
+        fsp.appendFile(
+            logFile,
+            `${Utilities.formatLocalDateTime()} | ${message}\n${stack ? stack + '\n' : ''}\n`
+        ).catch((err) => {
             console.error('Failed to append to log file:', err);
         });
     }

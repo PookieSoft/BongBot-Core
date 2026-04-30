@@ -1,5 +1,14 @@
 import { GatewayIntentBits, MessageFlags, SlashCommandBuilder } from 'discord.js';
-import type { Message, InteractionReplyOptions, Interaction, ApplicationCommandDataResolvable, ChatInputCommandInteraction, SlashCommandOptionsOnlyBuilder, SlashCommandSubcommandsOnlyBuilder, CacheType } from 'discord.js';
+import type {
+    Message,
+    InteractionReplyOptions,
+    Interaction,
+    ApplicationCommandDataResolvable,
+    ChatInputCommandInteraction,
+    SlashCommandOptionsOnlyBuilder,
+    SlashCommandSubcommandsOnlyBuilder,
+    CacheType,
+} from 'discord.js';
 import { ExtendedClient } from '../extended_client.js';
 import { validateRequiredConfig } from './index.js';
 import LOGGER from '../services/logging_service.js';
@@ -10,7 +19,7 @@ import crypto from 'crypto';
 type BotEventHandler = (bot: ExtendedClient, additionalFunctions: string[], ...args: any[]) => Promise<void>;
 
 const handlerMap: Map<string, BotEventHandler> = new Map([
-    ['interactionCreate', async (bot, funcs, interaction) => await interactionCreateHandler(interaction, bot, funcs)]
+    ['interactionCreate', async (bot, funcs, interaction) => await interactionCreateHandler(interaction, bot, funcs)],
 ]);
 
 /**
@@ -31,11 +40,15 @@ const handlerMap: Map<string, BotEventHandler> = new Map([
  * const bot = await basicStart('PookieSoft', 'BongBot', (client) => [...]);
  * ```
  */
-export async function basicStart(owner: string, repo: string, commandBuilder: (bot: ExtendedClient) => Array<ApplicationCommandDataResolvable>): Promise<ExtendedClient> {
+export async function basicStart(
+    owner: string,
+    repo: string,
+    commandBuilder: (bot: ExtendedClient) => Array<ApplicationCommandDataResolvable>
+): Promise<ExtendedClient> {
     return await startBot({
         owner: owner,
         repo: repo,
-        commandBuilder: commandBuilder
+        commandBuilder: commandBuilder,
     });
 }
 
@@ -53,12 +66,17 @@ export async function basicStart(owner: string, repo: string, commandBuilder: (b
  *                        Only handlers present in the internal handler map are wired up.
  * @returns A logged-in, ready-to-use {@link ExtendedClient}.
  */
-export async function startWithHandlers(owner: string, repo: string, commandBuilder: (bot: ExtendedClient) => Array<ApplicationCommandDataResolvable>, handlers: string[]): Promise<ExtendedClient> {
+export async function startWithHandlers(
+    owner: string,
+    repo: string,
+    commandBuilder: (bot: ExtendedClient) => Array<ApplicationCommandDataResolvable>,
+    handlers: string[]
+): Promise<ExtendedClient> {
     return await startBot({
         owner: owner,
         repo: repo,
         commandBuilder: commandBuilder,
-        handlers: handlers
+        handlers: handlers,
     });
 }
 
@@ -76,12 +94,17 @@ export async function startWithHandlers(owner: string, repo: string, commandBuil
  *                            on each command (e.g. `['trackUsage']`).
  * @returns A logged-in, ready-to-use {@link ExtendedClient}.
  */
-export async function startWithFunctions(owner: string, repo: string, commandBuilder: (bot: ExtendedClient) => Array<ApplicationCommandDataResolvable>, additionalFunctions: string[]): Promise<ExtendedClient> {
+export async function startWithFunctions(
+    owner: string,
+    repo: string,
+    commandBuilder: (bot: ExtendedClient) => Array<ApplicationCommandDataResolvable>,
+    additionalFunctions: string[]
+): Promise<ExtendedClient> {
     return await startBot({
         owner: owner,
         repo: repo,
         commandBuilder: commandBuilder,
-        additionalFunctions: additionalFunctions
+        additionalFunctions: additionalFunctions,
     });
 }
 
@@ -102,13 +125,7 @@ export async function startWithFunctions(owner: string, repo: string, commandBui
  * @throws If required env vars are missing, or if command registration fails.
  */
 export async function startBot(config: BotStartConfig): Promise<ExtendedClient> {
-    const {
-        owner,
-        repo,
-        commandBuilder,
-        additionalFunctions = [],
-        handlers = ['interactionCreate']
-    } = config;
+    const { owner, repo, commandBuilder, additionalFunctions = [], handlers = ['interactionCreate'] } = config;
 
     /** validate and assign session */
     validateRequiredConfig();
@@ -116,7 +133,11 @@ export async function startBot(config: BotStartConfig): Promise<ExtendedClient> 
 
     const data = await getRepoInfoFromAPI(owner, repo);
     const token: string = process.env.DISCORD_API_KEY!;
-    const bot: ExtendedClient = new ExtendedClient({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] }, LOGGER.default, data);
+    const bot: ExtendedClient = new ExtendedClient(
+        { intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] },
+        LOGGER.default,
+        data
+    );
     const commands: Array<ApplicationCommandDataResolvable> = commandBuilder(bot);
     for (const [eventName, handler] of handlerMap) {
         if (!handlers?.includes(eventName)) continue;
@@ -144,9 +165,14 @@ export async function startBot(config: BotStartConfig): Promise<ExtendedClient> 
     console.log(`sessionId: ${process.env.SESSION_ID}`);
     return bot;
 }
-async function interactionCreateHandler(interaction: Interaction, bot: ExtendedClient, additionalFunctions: string[]): Promise<void> {
-
-    if (!interaction.isCommand()) { return; }
+async function interactionCreateHandler(
+    interaction: Interaction,
+    bot: ExtendedClient,
+    additionalFunctions: string[]
+): Promise<void> {
+    if (!interaction.isCommand()) {
+        return;
+    }
 
     try {
         const command = bot.commands!.get(interaction.commandName);
@@ -163,30 +189,37 @@ async function interactionCreateHandler(interaction: Interaction, bot: ExtendedC
             }
         }
     } catch (error) {
-        if (interaction.replied) { await interaction.deleteReply(); }
-        await interaction.followUp(await buildUnknownError(error) as InteractionReplyOptions);
+        if (interaction.replied) {
+            await interaction.deleteReply();
+        }
+        await interaction.followUp((await buildUnknownError(error)) as InteractionReplyOptions);
     }
-
 }
 
-
 const postDeploymentMessage = async (bot: ExtendedClient) => {
-    if (!process.env.DISCORD_CHANNEL_ID) { bot.logger!.error(new Error('DISCORD_CHANNEL_ID not set')); return; }
+    if (!process.env.DISCORD_CHANNEL_ID) {
+        bot.logger!.error(new Error('DISCORD_CHANNEL_ID not set'));
+        return;
+    }
     const channel = await bot.channels.fetch(process.env.DISCORD_CHANNEL_ID);
     if (!channel || !channel.isTextBased()) return;
     if (!('send' in channel && typeof channel.send === 'function')) return;
     try {
         const messages = await channel.messages.fetch({ limit: 100 });
-        const botMessages = messages.filter((msg: Message) =>
-            msg.author.id === bot.user!.id &&
-            msg.embeds.some(embed =>
-                embed.title?.includes(bot!.deploymentInfo.repo) ||
-                embed.description?.includes(bot!.deploymentInfo.repo)
-            )
+        const botMessages = messages.filter(
+            (msg: Message) =>
+                msg.author.id === bot.user!.id &&
+                msg.embeds.some(
+                    (embed) =>
+                        embed.title?.includes(bot!.deploymentInfo.repo) ||
+                        embed.description?.includes(bot!.deploymentInfo.repo)
+                )
         );
-        await Promise.allSettled(botMessages.map(m => m.delete()));
+        await Promise.allSettled(botMessages.map((m) => m.delete()));
     } catch (err: any) {
-        console.warn(`Warning: Could not delete messages. The bot might be missing 'Manage Messages' permissions. Error: ${err.message}`);
+        console.warn(
+            `Warning: Could not delete messages. The bot might be missing 'Manage Messages' permissions. Error: ${err.message}`
+        );
     }
     // Send the composed embed to the channel.
     const card = await generateCard(bot);
@@ -251,18 +284,12 @@ export interface BotStartConfig {
  */
 export interface Command {
     /** The slash command definition as built with discord.js builders. */
-    data:
-        | SlashCommandBuilder
-        | SlashCommandOptionsOnlyBuilder
-        | SlashCommandSubcommandsOnlyBuilder;
+    data: SlashCommandBuilder | SlashCommandOptionsOnlyBuilder | SlashCommandSubcommandsOnlyBuilder;
     /**
      * Called when a user invokes this command. Returned value is forwarded to
      * `interaction.followUp(...)`.
      */
-    execute(
-        interaction: ChatInputCommandInteraction<CacheType>,
-        client: any
-    ): Promise<any>;
+    execute(interaction: ChatInputCommandInteraction<CacheType>, client: any): Promise<any>;
     /** Arbitrary hook functions referenced by `additionalFunctions` in {@link BotStartConfig}. */
     [key: string]: any;
 }

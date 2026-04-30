@@ -27,5 +27,4 @@ export class ExtendedClient extends Client {
         this.version = data.tag;
         this.deploymentInfo = data;
     }
-
 }

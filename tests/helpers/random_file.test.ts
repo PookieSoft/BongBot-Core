@@ -2,7 +2,8 @@ import { jest, describe, test, expect, beforeEach } from '@jest/globals';
 import path from 'path';
 
 // Mock fs module
-const mockReaddir = jest.fn<(dir: string, callback: (err: NodeJS.ErrnoException | null, files: string[]) => void) => void>();
+const mockReaddir =
+    jest.fn<(dir: string, callback: (err: NodeJS.ErrnoException | null, files: string[]) => void) => void>();
 const mockStat = jest.fn<(path: string, callback: (err: NodeJS.ErrnoException | null, stats: any) => void) => void>();
 
 jest.unstable_mockModule('fs', () => ({

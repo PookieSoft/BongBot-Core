@@ -26,7 +26,7 @@ class MockEmbed {
             description: null,
             fields: [],
             footer: null,
-            timestamp: null
+            timestamp: null,
         };
     }
 
@@ -72,8 +72,8 @@ const mockEmbedBuilder = jest.fn().mockImplementation(() => new MockEmbed());
 jest.unstable_mockModule('discord.js', () => ({
     EmbedBuilder: mockEmbedBuilder,
     Colors: {
-        Purple: '#800080'
-    }
+        Purple: '#800080',
+    },
 }));
 
 // Import after mocks are set up
@@ -87,16 +87,17 @@ const mockDeploymentInfo: GithubInfo = {
     commitUrl: 'https://github.com/Mirasii/BongBot/commit/abc1234',
     shortHash: 'abc1234',
     commitMessage: 'Test commit',
-    tag: 'v1.0.0'
+    tag: 'v1.0.0',
 };
 
-const createMockBot = (overrides?: Partial<{ deploymentInfo: GithubInfo; user: any }>): ExtendedClient => ({
-    user: {
-        displayAvatarURL: jest.fn(() => 'http://example.com/bot_avatar.jpg'),
-    },
-    deploymentInfo: mockDeploymentInfo,
-    ...overrides,
-} as unknown as ExtendedClient);
+const createMockBot = (overrides?: Partial<{ deploymentInfo: GithubInfo; user: any }>): ExtendedClient =>
+    ({
+        user: {
+            displayAvatarURL: jest.fn(() => 'http://example.com/bot_avatar.jpg'),
+        },
+        deploymentInfo: mockDeploymentInfo,
+        ...overrides,
+    }) as unknown as ExtendedClient;
 
 describe('infoCard helper', () => {
     beforeEach(() => {
@@ -162,9 +163,11 @@ describe('infoCard helper', () => {
     });
 
     test('generateCard should handle missing bot avatar gracefully', async () => {
-        const card = await infoCard.generateCard(createMockBot({
-            user: { displayAvatarURL: jest.fn(() => null) },
-        }));
+        const card = await infoCard.generateCard(
+            createMockBot({
+                user: { displayAvatarURL: jest.fn(() => null) },
+            })
+        );
         expect(card).toBeDefined();
         expect(card.data.thumbnail).toEqual({ url: null });
     });

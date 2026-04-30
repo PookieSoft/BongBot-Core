@@ -2,7 +2,7 @@ import { Logger } from '../helpers/interfaces.js';
 import FileLogger from '../loggers/file_logger.js';
 import RuntimeLogger from '@pookiesoft/bongbot-core/runtime-logger';
 
-const isBun = "Bun" in globalThis;
+const isBun = 'Bun' in globalThis;
 /**
  * Central logging surface used by BongBot and its dependents.
  *
@@ -77,8 +77,8 @@ export default {
      */
     closeAll() {
         LoggerService.getInstance().closeAll();
-    }
-}
+    },
+};
 
 class LoggerService {
     private static instance: LoggerService;
@@ -101,9 +101,9 @@ class LoggerService {
     getLogger(name: string): Logger {
         let targetName = name;
         const isIncompatible = (isBun && name === 'node') || (!isBun && name === 'bun');
-        
+
         if (!this.loggerMapping[targetName] || isIncompatible) {
-            const reason = !this.loggerMapping[targetName] ? "not found" : "runtime incompatible";
+            const reason = !this.loggerMapping[targetName] ? 'not found' : 'runtime incompatible';
             console.warn(`Logger "${targetName}" is ${reason}, switching to "default".`);
             targetName = 'default';
         }

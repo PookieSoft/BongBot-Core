@@ -48,7 +48,7 @@ class EMBED_BUILDER {
      */
     constructEmbedWithAttachment(description: string, filename: string) {
         this.embed.setDescription(description);
-        if (!this.attachment) throw new Error("No attachment provided for embed.");
+        if (!this.attachment) throw new Error('No attachment provided for embed.');
         this.embed.setThumbnail(`attachment://${filename}`);
         return this;
     }
@@ -94,7 +94,10 @@ class EMBED_BUILDER {
      * @param client The client to read version / avatar from.
      */
     addDefaultFooter(client: ExtendedClient) {
-        this.embed.setFooter({ text: `BongBot • ${client?.version ?? 'dev build'}`, iconURL: client.user?.displayAvatarURL() });
+        this.embed.setFooter({
+            text: `BongBot • ${client?.version ?? 'dev build'}`,
+            iconURL: client.user?.displayAvatarURL(),
+        });
         this.embed.setTimestamp();
         return this;
     }
@@ -116,16 +119,21 @@ class EMBED_BUILDER {
      *
      * @returns An object containing the embed array and any attached files.
      */
-    build(): { embeds: [EmbedBuilder], files: AttachmentBuilder [] } | string {
-        if (!this.attachment) {return { embeds: [this.embed], files: [] };}
-        return { embeds: [this.embed], files: [this.attachment].filter(f => f)};
+    build(): { embeds: [EmbedBuilder]; files: AttachmentBuilder[] } | string {
+        if (!this.attachment) {
+            return { embeds: [this.embed], files: [] };
+        }
+        return { embeds: [this.embed], files: [this.attachment].filter((f) => f) };
     }
 }
 
 async function selectRandomFile(dir: string): Promise<string> {
     return new Promise((resolve, reject) => {
         randomFile(dir, (err, file) => {
-            if (err) { reject(err); return; } 
+            if (err) {
+                reject(err);
+                return;
+            }
             resolve(file ?? '');
         });
     });
