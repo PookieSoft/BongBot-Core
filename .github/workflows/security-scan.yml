@@ -1,0 +1,25 @@
+name: Security Scan
+
+# Thin caller for PookieSoft/workflows security-scan. Library-only: filesystem
+# scan only, no Docker image to scan.
+
+on:
+    schedule:
+        - cron: '0 9 * * 1'  # Monday 9 AM UTC
+    workflow_dispatch:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+
+permissions:
+    contents: read
+    security-events: write
+    actions: read
+
+jobs:
+    scan:
+        uses: PookieSoft/workflows/.github/workflows/security-scan.yml@v1
+        with:
+            scan-docker: false
+        secrets: inherit

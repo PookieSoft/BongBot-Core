@@ -1,119 +1,24 @@
-# .github/workflows/deploy.yml
-name: Create Release and Deploy BongBot
+name: Create Release and Publish
+
+# Thin caller for PookieSoft/workflows release. Library-only: publishes to
+# GitHub Packages, no Docker.
 
 on:
-  push:
-    branches: [ main ]
+    push:
+        branches: [main]
+
+permissions:
+    contents: write
+    pull-requests: read
+    packages: write
 
 jobs:
-  deploy:
-    environment: Prod
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      packages: write
-      pull-requests: read
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v5
+    release:
+        uses: PookieSoft/workflows/.github/workflows/release.yml@v1
         with:
-          fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 'lts/*'
-          registry-url: 'https://npm.pkg.github.com'
-          scope: '@pookiesoft'
-
-      # --- Run tests with coverage for production ---
-      - name: Run Unit Tests with Coverage
-        run: |
-          npm ci
-          npm run test
-        env:
-          JEST_JUNIT_OUTPUT_DIR: ./test-results
-          JEST_JUNIT_OUTPUT_NAME: junit.xml
-
-      # --- Upload coverage and test analytics to Codecov ---
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          slug: PookieSoft/BongBot-Core
-          file: ./coverage/lcov.info
-          flags: production
-          name: production-coverage
-          fail_ci_if_error: false
-          override_branch: main
-          override_commit: ${{ github.sha }}
-
-      # --- Upload test results to Codecov for test analytics ---
-      - name: Upload test results to Codecov
-        if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          name: production-test-results
-          flags: production,tests
-          fail_ci_if_error: false
-
-      - name: Find Pull Request and Get Labels
-        id: find_pr
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Find PR associated with current commit
-          pr_number=$(gh pr list --state merged --json number,mergeCommit --jq ".[] | select(.mergeCommit.oid == \"${{ github.sha }}\") | .number")
-          
-          if [[ -n "$pr_number" ]]; then
-            echo "Found merged PR #$pr_number"
-            # Get PR labels
-            labels=$(gh pr view $pr_number --json labels --jq '(.labels // []) | map(.name) | join(",")')
-            echo "PR labels: $labels"
-            echo "number=$pr_number" >> $GITHUB_OUTPUT
-            echo "labels=$labels" >> $GITHUB_OUTPUT
-          else
-            echo "No merged PR found for this commit"
-            echo "number=" >> $GITHUB_OUTPUT
-            echo "labels=" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Resolve Version
-        id: version
-        uses: ./.github/actions/resolve-version
-        with:
-          labels: ${{ steps.find_pr.outputs.labels }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and version package
-        run: |
-          npm run build
-          npm version ${{ steps.version.outputs.new_tag }} --no-git-tag-version
-
-      - name: Publish to GitHub Packages
-        run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Push new version tag
-        if: success()
-        uses: anothrNick/github-tag-action@1.75.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DEFAULT_BUMP: ${{ steps.version.outputs.level }}
-          TAG_PREFIX: v
-
-      - name: Create GitHub Release
-        if: success()
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.version.outputs.new_tag }}
-          release_name: Release ${{ steps.version.outputs.new_tag }}
-          body: |
-            ${{ github.event.head_commit.message }}
-          draft: false
-          prerelease: false
+            runtime: node
+            build-docker: false
+            publish-package: true
+            codecov-slug: PookieSoft/BongBot-Core
+            environment: Prod
+        secrets: inherit
