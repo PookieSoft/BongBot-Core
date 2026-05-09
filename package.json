@@ -33,15 +33,10 @@
         "_postinstall_note": "TODO: Remove postinstall once all dependent repos have migrated to @pookiesoft/bongbot-core from GitHub Packages"
     },
     "peerDependencies": {
-        "better-sqlite3": "^12.8.0",
         "discord.js": "^14.26.4"
     },
-    "peerDependenciesMeta": {
-        "better-sqlite3": {
-            "optional": true
-        }
-    },
     "dependencies": {
+        "better-sqlite3": "^12.8.0",
         "ipaddr.js": "^2.4.0",
         "source-map-support": "^0.5.21"
     },
