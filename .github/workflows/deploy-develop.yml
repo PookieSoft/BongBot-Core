@@ -1,6 +1,8 @@
 name: PR CI & Test
 
 # Thin caller for PookieSoft/workflows pr-ci. Library-only repo: no Docker.
+# After CI passes, publishes a beta dev package to GitHub Packages and posts
+# the install command to the PR.
 
 on:
     pull_request:
@@ -10,7 +12,7 @@ on:
 permissions:
     checks: write
     pull-requests: write
-    packages: read
+    packages: write
 
 jobs:
     ci:
@@ -23,3 +25,77 @@ jobs:
             coverage-comment: true
             environment: Dev
         secrets: inherit
+
+    publish-dev:
+        needs: ci
+        if: github.actor != 'dependabot[bot]'
+        runs-on: ubuntu-latest
+        environment: Dev
+        permissions:
+            contents: read
+            pull-requests: write
+            packages: write
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v5
+              with:
+                  fetch-depth: 0
+
+            - name: Find previous dev package comment
+              id: find-comment
+              uses: peter-evans/find-comment@v3
+              with:
+                  issue-number: ${{ github.event.pull_request.number }}
+                  comment-author: 'github-actions[bot]'
+                  body-includes: 'BongBot Core Validated'
+
+            - name: Delete previous dev package comment
+              if: steps.find-comment.outputs.comment-id != ''
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      github.rest.issues.deleteComment({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          comment_id: ${{ steps.find-comment.outputs.comment-id }}
+                      })
+
+            - name: Resolve version
+              id: version
+              uses: ./.github/actions/resolve-version
+              with:
+                  labels: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+                  github-token: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Setup Node.js for GitHub Packages
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 'lts/*'
+                  registry-url: 'https://npm.pkg.github.com'
+                  scope: '@pookiesoft'
+
+            - name: Install dependencies
+              run: npm ci
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Build and publish dev package
+              id: publish
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  npm run build
+                  DEV_VERSION="${{ steps.version.outputs.version }}-beta.${{ github.event.pull_request.number }}.${{ github.run_number }}"
+                  npm version "$DEV_VERSION" --no-git-tag-version
+                  npm publish --tag "pr-${{ github.event.pull_request.number }}.${{ github.run_number }}"
+                  echo "version=$DEV_VERSION" >> $GITHUB_OUTPUT
+
+            - name: Comment dev package on PR
+              uses: peter-evans/create-or-update-comment@v4
+              with:
+                  issue-number: ${{ github.event.pull_request.number }}
+                  body: |
+                      **BongBot Core Validated** :rocket:
+
+                      - **Dev Package:** `npm install @pookiesoft/bongbot-core@${{ steps.publish.outputs.version }}`
+                      - **Version:** `${{ steps.publish.outputs.version }}`
