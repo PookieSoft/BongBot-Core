@@ -1,8 +1,18 @@
 name: Claude PR Review
 
-# On-demand, read-only PR review by Claude Code.
+# Read-only PR review by Claude Code.
 #
-# Trigger: comment "/claude-review" on a pull request.
+# ┌─────────────────────────────────────────────────────────────────────────┐
+# │ TEMPORARY TEST TRIGGER — remove before merging to main.                   │
+# │                                                                           │
+# │ The intended trigger is `issue_comment` (comment "/claude-review" on a    │
+# │ PR). But `issue_comment` ONLY runs the workflow version on the DEFAULT    │
+# │ branch, so it cannot be tested from this feature branch. `pull_request`   │
+# │ runs the workflow from the PR branch itself, so we use it here to         │
+# │ validate the action end-to-end before merge. Scoped to `branches: [main]` │
+# │ so it only fires for PRs targeting main. Swap back to the commented-out   │
+# │ `issue_comment` block below before merging.                               │
+# └─────────────────────────────────────────────────────────────────────────┘
 #
 # Scope is deliberately minimal (constraint: Claude may READ the repo + PR and
 # ADD comments, but must NEVER write, commit, or push):
@@ -13,29 +23,37 @@ name: Claude PR Review
 #   * `--allowedTools` is defense-in-depth on top: Claude is only handed
 #     read + comment tools, so it never even attempts a write.
 #
-# Minutes budget (3000/mo action limit): this workflow only runs when a human
-# explicitly asks for it via the trigger comment, never automatically on push.
-# `timeout-minutes` caps a runaway run, and `concurrency` cancels a superseded
-# review so repeat comments don't stack. See .github/CLAUDE_REVIEW.md for the
-# path to automating this on specific branches.
+# Minutes budget (3000/mo action limit): `timeout-minutes` caps a runaway run,
+# and `concurrency` cancels a superseded review so repeat pushes don't stack.
+# See .github/CLAUDE_REVIEW.md for the automation notes.
 
 on:
-    issue_comment:
-        types: [created]
+    # TEMPORARY test trigger — see banner above. Remove before merge.
+    pull_request:
+        types: [opened, reopened, synchronize]
+        branches: [main]
+
+    # INTENDED trigger — uncomment before merge, and re-enable the
+    # `github.event.issue.pull_request` guard + `issue.number` references below.
+    # issue_comment:
+    #     types: [created]
 
 # Only one review per PR at a time; a newer trigger cancels the older run
 # instead of burning minutes on both.
 concurrency:
-    group: claude-review-${{ github.event.issue.number }}
+    group: claude-review-${{ github.event.pull_request.number }}
     cancel-in-progress: true
 
 jobs:
     review:
-        # Gate 1: only on PR comments (issue_comment fires for issues too),
-        # and only when the comment is exactly our trigger phrase.
+        # TEMPORARY guard for the pull_request test trigger: skip drafts and
+        # Dependabot so we don't waste minutes on WIP/bot PRs.
+        # For the intended issue_comment trigger, replace with:
+        #   github.event.issue.pull_request &&
+        #   contains(github.event.comment.body, '/claude-review')
         if: >
-            github.event.issue.pull_request &&
-            contains(github.event.comment.body, '/claude-review')
+            github.event.pull_request.draft == false &&
+            github.actor != 'dependabot[bot]'
         runs-on: ubuntu-latest
         timeout-minutes: 15
 
@@ -64,9 +82,15 @@ jobs:
                   # above. This is what actually caps Claude's GitHub reach.
                   github_token: ${{ secrets.GITHUB_TOKEN }}
 
+                  # TEMPORARY: required for the pull_request test trigger so the
+                  # action runs in tracking-comment mode and posts a review
+                  # (without a @mention to react to). Not needed for the
+                  # issue_comment trigger — remove when reverting.
+                  track_progress: true
+
                   prompt: |
                       REPO: ${{ github.repository }}
-                      PR NUMBER: ${{ github.event.issue.number }}
+                      PR NUMBER: ${{ github.event.pull_request.number }}
 
                       You are reviewing this pull request. You have READ-ONLY
                       access: you may read the repository and PR diff and post a
