@@ -1,0 +1,92 @@
+name: Claude PR Review
+
+# On-demand, read-only PR review by Claude Code.
+#
+# Trigger: comment "/claude-review" on a pull request.
+#
+# Scope is deliberately minimal (constraint: Claude may READ the repo + PR and
+# ADD comments, but must NEVER write, commit, or push):
+#   * The job `permissions:` block grants only `pull-requests: write` and
+#     `contents: read`. Because `contents: write` is absent, the GITHUB_TOKEN
+#     itself is physically incapable of pushing a commit — this is the hard
+#     enforcement boundary, independent of anything Claude decides to do.
+#   * `--allowedTools` is defense-in-depth on top: Claude is only handed
+#     read + comment tools, so it never even attempts a write.
+#
+# Minutes budget (3000/mo action limit): this workflow only runs when a human
+# explicitly asks for it via the trigger comment, never automatically on push.
+# `timeout-minutes` caps a runaway run, and `concurrency` cancels a superseded
+# review so repeat comments don't stack. See .github/CLAUDE_REVIEW.md for the
+# path to automating this on specific branches.
+
+on:
+    issue_comment:
+        types: [created]
+
+# Only one review per PR at a time; a newer trigger cancels the older run
+# instead of burning minutes on both.
+concurrency:
+    group: claude-review-${{ github.event.issue.number }}
+    cancel-in-progress: true
+
+jobs:
+    review:
+        # Gate 1: only on PR comments (issue_comment fires for issues too),
+        # and only when the comment is exactly our trigger phrase.
+        if: >
+            github.event.issue.pull_request &&
+            contains(github.event.comment.body, '/claude-review')
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+
+        # Gate 2 (the real enforcement): least-privilege token.
+        # No `contents: write` => no ability to commit or push, ever.
+        permissions:
+            contents: read # read the repo/diff; NOT write
+            pull-requests: write # post the review comment
+            issues: write # sticky comment lives on the issue timeline
+
+        steps:
+            - name: Checkout PR head
+              uses: actions/checkout@v5
+              with:
+                  fetch-depth: 0
+
+            - name: Run Claude review
+              uses: anthropics/claude-code-action@v1
+              with:
+                  # Subscription OAuth token (not API-billed). Generate locally
+                  # with `claude setup-token` and store as a repo/environment
+                  # secret named CLAUDE_CODE_OAUTH_TOKEN.
+                  claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+                  # Ephemeral, least-privilege token from the permissions block
+                  # above. This is what actually caps Claude's GitHub reach.
+                  github_token: ${{ secrets.GITHUB_TOKEN }}
+
+                  prompt: |
+                      REPO: ${{ github.repository }}
+                      PR NUMBER: ${{ github.event.issue.number }}
+
+                      You are reviewing this pull request. You have READ-ONLY
+                      access: you may read the repository and PR diff and post a
+                      single review comment. You cannot and must not attempt to
+                      commit, push, edit files, or approve/merge.
+
+                      Use the GitHub tools to fetch the PR diff and changed
+                      files, then post ONE structured review comment covering:
+                        - Correctness bugs and edge cases
+                        - Security concerns
+                        - Maintainability / readability
+                        - Test coverage gaps
+                      Reference specific files and line numbers. If the PR looks
+                      good, say so briefly rather than inventing nits.
+
+                  # Defense-in-depth allowlist: read + comment only.
+                  # Read: local files, ripgrep, and read-only GitHub API calls.
+                  # Write surface is limited to posting PR/issue comments.
+                  # No Edit/Write/Bash(git ...)/create_or_update tools are listed,
+                  # so Claude cannot modify the tree even in-runner.
+                  claude_args: |
+                      --allowedTools "Read,Grep,Glob,mcp__github__get_pull_request,mcp__github__get_pull_request_files,mcp__github__get_pull_request_diff,mcp__github__list_pull_requests,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_file_contents,mcp__github__search_code,mcp__github_comment__update_claude_comment"
+                      --max-turns 20
