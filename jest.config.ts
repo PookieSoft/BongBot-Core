@@ -1,12 +1,26 @@
 import type { Config } from 'jest';
 
 const config: Config = {
-    preset: 'ts-jest/presets/default-esm',
     testEnvironment: 'node',
 
-    // ✅ Handle TypeScript + ESM
+    // ✅ Handle TypeScript + ESM via swc (ts-jest does not support TypeScript 7)
     transform: {
-        '^.+\\.[tj]sx?$': ['ts-jest', { useESM: true }],
+        '^.+\\.[tj]sx?$': [
+            '@swc/jest',
+            {
+                jsc: {
+                    parser: {
+                        syntax: 'typescript',
+                        tsx: false,
+                        decorators: true,
+                    },
+                    target: 'esnext',
+                    keepClassNames: true,
+                },
+                // Emit ES modules so Jest's ESM runtime can consume the output
+                module: { type: 'es6' },
+            },
+        ],
     },
     extensionsToTreatAsEsm: ['.ts', '.tsx'],
     moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
@@ -57,8 +71,7 @@ const config: Config = {
         ],
     ],
 
-    // Limit worker memory to help with ts-jest memory leak
-    // https://github.com/kulshekhar/ts-jest/issues/1967
+    // Cap per-worker memory to keep the suite's footprint predictable in CI
     workerIdleMemoryLimit: '1024MB',
 };
 
