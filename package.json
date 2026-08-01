@@ -52,7 +52,7 @@
         "jest": "^30.4.2",
         "jest-junit": "^17.0.0",
         "msw": "^2.15.0",
-        "prettier": "^3.9.5",
+        "prettier": "^3.9.6",
         "ts-jest-resolver": "^2.0.1",
         "ts-node": "^10.9.2",
         "typescript": "^7.0.2"
