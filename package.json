@@ -43,7 +43,7 @@
     "devDependencies": {
         "@swc/core": "^1.15.46",
         "@swc/jest": "^0.2.39",
-        "@types/better-sqlite3": "^7.6.13",
+        "@types/better-sqlite3": "^9.6.0",
         "@types/jest": "^30.0.0",
         "@types/node": "^26.1.2",
         "better-sqlite3": "^13.0.2",
