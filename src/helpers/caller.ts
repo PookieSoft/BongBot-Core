@@ -3,21 +3,17 @@ import dns from 'dns/promises';
 import net from 'node:net';
 import ipaddr from 'ipaddr.js';
 
-/** How a successful response body should be decoded. */
 export type ResponseType = 'json' | 'binary';
 
-/** A non-JSON response body, returned when `responseType` is `'binary'`. */
+/**
+ * Raw body returned when `responseType` is `'binary'`.
+ */
 export interface BinaryResponse {
-    /** Raw response body. */
     data: Buffer;
-    /** Content type reported by the server, or `null` when the header is absent. */
     contentType: string | null;
 }
 
-/** Longest error body kept in a thrown message, so a large page cannot flood the logs. */
 const MAX_ERROR_BODY_LENGTH = 500;
-
-/** Content types whose bodies are bytes, not readable text. */
 const BINARY_CONTENT_TYPE = /^(?:image|video|audio)\/|^application\/octet-stream/i;
 
 /**
@@ -26,9 +22,8 @@ const BINARY_CONTENT_TYPE = /^(?:image|video|audio)\/|^application\/octet-stream
  * Provides a small convenience surface (`get`/`post`) and an SSRF validator
  * for safely contacting user-supplied server URLs (e.g. Pterodactyl panels).
  *
- * Responses with a `2xx` status are parsed as JSON by default; request
- * `'binary'` to receive the raw bytes and content type instead, which is what
- * image and file downloads need. `204` / empty responses return `null`;
+ * Responses with a `2xx` status are parsed as JSON, or returned as raw bytes
+ * when `responseType` is `'binary'`; `204` / empty responses return `null`;
  * non-`ok` responses throw with the status and body text.
  */
 export class Caller {
@@ -54,9 +49,7 @@ export class Caller {
      * @param path     Optional path appended to the base URL.
      * @param params   Optional pre-encoded query string (no leading `?`).
      * @param headers  Optional request headers.
-     * @param responseType `'json'` (default) parses the body as JSON. `'binary'`
-     *                 returns a {@link BinaryResponse} carrying the raw bytes and
-     *                 the server's content type, for images and other files.
+     * @param responseType `'binary'` returns a {@link BinaryResponse} instead of parsed JSON.
      * @returns The parsed JSON body, a {@link BinaryResponse}, or `null` for empty responses.
      * @throws {Error} When the response status is not OK.
      */
@@ -151,8 +144,7 @@ async function makeCallout(
 }
 
 /**
- * Describes a failed response body for the thrown error and the log. Summarises
- * binary bodies rather than decoding them, and truncates long text.
+ * Keeps binary bodies and oversized pages out of the thrown error and the log.
  */
 async function describeErrorBody(response: Response): Promise<string> {
     const contentType = response.headers.get('content-type');
