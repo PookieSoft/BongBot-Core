@@ -3,6 +3,7 @@ export { default, getFilePath, validateRequiredConfig } from './config/index.js'
 
 // Helpers
 export { Caller } from './helpers/caller.js';
+export type { BinaryResponse, ResponseType } from './helpers/caller.js';
 export { default as EMBED_BUILDER } from './helpers/embed_builder.js';
 export { buildError, buildUnknownError } from './helpers/error_builder.js';
 export { default as getRandomFile } from './helpers/random_file.js';

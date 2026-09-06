@@ -135,6 +135,99 @@ describe('caller helper', () => {
             expect(result).toBeNull();
         });
 
+        test('get method should return raw bytes and content type for binary responses', async () => {
+            const result = await caller.get('http://test.com', '/api/image', null, {}, 'binary');
+
+            expect(result.contentType).toBe('image/png');
+            expect(Buffer.isBuffer(result.data)).toBe(true);
+            expect([...result.data]).toEqual([137, 80, 78, 71]);
+        });
+
+        test('get method should not parse a binary response as JSON', async () => {
+            await expect(caller.get('http://test.com', '/api/image', null, {}, 'binary')).resolves.toBeDefined();
+            await expect(caller.get('http://test.com', '/api/image', null, {})).rejects.toThrow();
+        });
+
+        test('get method should report a missing content type as null', async () => {
+            server.use(
+                http.get('http://test.com/api/headerless', () => {
+                    return new HttpResponse(new Uint8Array([1, 2]), { status: 200 });
+                })
+            );
+
+            const result = await caller.get('http://test.com', '/api/headerless', null, {}, 'binary');
+            expect(result.contentType).toBeNull();
+        });
+
+        test('binary requests should still return null for empty responses', async () => {
+            server.use(
+                http.get('http://test.com/api/no-image', () => {
+                    return new HttpResponse(null, { status: 204 });
+                })
+            );
+
+            await expect(caller.get('http://test.com', '/api/no-image', null, {}, 'binary')).resolves.toBeNull();
+        });
+
+        test('should summarise a binary error body instead of decoding it', async () => {
+            server.use(
+                http.get('http://test.com/api/bad-image', () => {
+                    return new HttpResponse(new Uint8Array([137, 80]), {
+                        status: 500,
+                        statusText: 'Internal Server Error',
+                        headers: { 'content-type': 'image/png', 'content-length': '2' },
+                    });
+                })
+            );
+
+            await expect(caller.get('http://test.com', '/api/bad-image', null, {}, 'binary')).rejects.toThrow(
+                'Network response was not ok: 500 Internal Server Error <image/png body, 2 bytes>'
+            );
+            expect(mockLog).toHaveBeenCalledWith('<image/png body, 2 bytes>');
+        });
+
+        test('should report an unknown length when a binary error omits content-length', async () => {
+            server.use(
+                http.get('http://test.com/api/bad-stream', () => {
+                    return new HttpResponse('x', {
+                        status: 502,
+                        statusText: 'Bad Gateway',
+                        headers: { 'content-type': 'application/octet-stream' },
+                    });
+                })
+            );
+
+            await expect(caller.get('http://test.com', '/api/bad-stream', null, {})).rejects.toThrow(
+                '<application/octet-stream body, unknown bytes>'
+            );
+        });
+
+        test('should truncate a long text error body', async () => {
+            const body = 'e'.repeat(600);
+            server.use(
+                http.get('http://test.com/api/long-error', () => {
+                    return new HttpResponse(body, { status: 500, statusText: 'Internal Server Error' });
+                })
+            );
+
+            await expect(caller.get('http://test.com', '/api/long-error', null, {})).rejects.toThrow(
+                `Network response was not ok: 500 Internal Server Error ${'e'.repeat(500)}... (truncated)`
+            );
+        });
+
+        test('should keep a text error body that fits the limit intact', async () => {
+            const body = 'e'.repeat(500);
+            server.use(
+                http.get('http://test.com/api/exact-error', () => {
+                    return new HttpResponse(body, { status: 500, statusText: 'Internal Server Error' });
+                })
+            );
+
+            await expect(caller.get('http://test.com', '/api/exact-error', null, {})).rejects.toThrow(
+                `Network response was not ok: 500 Internal Server Error ${body}`
+            );
+        });
+
         test('should handle response with content-length 0', async () => {
             server.use(
                 http.get('http://test.com/api/empty', () => {
@@ -166,6 +259,11 @@ describe('caller helper', () => {
 
             const result = await callerInstance.get('http://test.com', '/api/data', null, {});
             expect(result).toEqual({ success: true });
+        });
+
+        test('get method should pass the binary response type through', async () => {
+            const result = await callerInstance.get('http://test.com', '/api/image', null, {}, 'binary');
+            expect(result.contentType).toBe('image/png');
         });
 
         test('post method should call the post function', async () => {
