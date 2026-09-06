@@ -78,6 +78,12 @@ const handlers = [
     http.get('http://test.com', ({ request }) => {
         return HttpResponse.json({ message: 'GET success null path' });
     }),
+    http.get('http://test.com/api/image', () => {
+        return new HttpResponse(new Uint8Array([137, 80, 78, 71]), {
+            status: 200,
+            headers: { 'content-type': 'image/png' },
+        });
+    }),
     http.get('http://test.com/api/error', () => {
         return new HttpResponse('Not Found', { status: 404, statusText: 'Not Found' });
     }),

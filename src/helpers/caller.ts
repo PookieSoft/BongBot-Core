@@ -3,14 +3,33 @@ import dns from 'dns/promises';
 import net from 'node:net';
 import ipaddr from 'ipaddr.js';
 
+/** How a successful response body should be decoded. */
+export type ResponseType = 'json' | 'binary';
+
+/** A non-JSON response body, returned when `responseType` is `'binary'`. */
+export interface BinaryResponse {
+    /** Raw response body. */
+    data: Buffer;
+    /** Content type reported by the server, or `null` when the header is absent. */
+    contentType: string | null;
+}
+
+/** Longest error body kept in a thrown message, so a large page cannot flood the logs. */
+const MAX_ERROR_BODY_LENGTH = 500;
+
+/** Content types whose bodies are bytes, not readable text. */
+const BINARY_CONTENT_TYPE = /^(?:image|video|audio)\/|^application\/octet-stream/i;
+
 /**
  * Lightweight HTTP client wrapper around `fetch` used by BongBot modules.
  *
  * Provides a small convenience surface (`get`/`post`) and an SSRF validator
  * for safely contacting user-supplied server URLs (e.g. Pterodactyl panels).
  *
- * Responses with a `2xx` status are parsed as JSON; `204` / empty responses
- * return `null`; non-`ok` responses throw with the status and body text.
+ * Responses with a `2xx` status are parsed as JSON by default; request
+ * `'binary'` to receive the raw bytes and content type instead, which is what
+ * image and file downloads need. `204` / empty responses return `null`;
+ * non-`ok` responses throw with the status and body text.
  */
 export class Caller {
     /**
@@ -35,11 +54,20 @@ export class Caller {
      * @param path     Optional path appended to the base URL.
      * @param params   Optional pre-encoded query string (no leading `?`).
      * @param headers  Optional request headers.
-     * @returns The parsed JSON body, or `null` for empty responses.
+     * @param responseType `'json'` (default) parses the body as JSON. `'binary'`
+     *                 returns a {@link BinaryResponse} carrying the raw bytes and
+     *                 the server's content type, for images and other files.
+     * @returns The parsed JSON body, a {@link BinaryResponse}, or `null` for empty responses.
      * @throws {Error} When the response status is not OK.
      */
-    async get(url: string, path?: string | null, params?: string | null, headers?: { [key: string]: any }) {
-        return await get(url, path, params, headers);
+    async get(
+        url: string,
+        path?: string | null,
+        params?: string | null,
+        headers?: { [key: string]: any },
+        responseType: ResponseType = 'json'
+    ) {
+        return await get(url, path, params, headers, responseType);
     }
 
     /**
@@ -64,12 +92,18 @@ export class Caller {
  */
 export default { get, post };
 
-async function get(url: string, path?: string | null, params?: string | null, headers?: { [key: string]: any }) {
+async function get(
+    url: string,
+    path?: string | null,
+    params?: string | null,
+    headers?: { [key: string]: any },
+    responseType: ResponseType = 'json'
+) {
     const config = {
         method: 'GET',
         headers: headers,
     };
-    return await makeCallout(constructFullPath(url, path, params), config);
+    return await makeCallout(constructFullPath(url, path, params), config, responseType);
 }
 async function post(url: string, path?: string | null, headers?: { [key: string]: any } | null, body?: any) {
     const config = {
@@ -84,7 +118,11 @@ function constructFullPath(url: string, path?: string | null, params?: string | 
     return `${url}${path ?? ''}${params ? `?${params}` : ''}`;
 }
 
-async function makeCallout(url: string, config: { [key: string]: any }): Promise<any> {
+async function makeCallout(
+    url: string,
+    config: { [key: string]: any },
+    responseType: ResponseType = 'json'
+): Promise<any> {
     let text: string | null;
     let resp = await fetch(url, config)
         .then(async (response) => {
@@ -93,9 +131,15 @@ async function makeCallout(url: string, config: { [key: string]: any }): Promise
                 if (response.status === 204 || contentLength === '0') {
                     return null;
                 }
+                if (responseType === 'binary') {
+                    return {
+                        data: Buffer.from(await response.arrayBuffer()),
+                        contentType: response.headers.get('content-type'),
+                    };
+                }
                 return await response.json();
             }
-            text = await response.text();
+            text = await describeErrorBody(response);
             throw new Error(`Network response was not ok: ${response.status} ${response.statusText} ${text}`);
         })
         .finally(() => {
@@ -104,6 +148,22 @@ async function makeCallout(url: string, config: { [key: string]: any }): Promise
             }
         });
     return resp;
+}
+
+/**
+ * Describes a failed response body for the thrown error and the log. Summarises
+ * binary bodies rather than decoding them, and truncates long text.
+ */
+async function describeErrorBody(response: Response): Promise<string> {
+    const contentType = response.headers.get('content-type');
+    if (contentType && BINARY_CONTENT_TYPE.test(contentType)) {
+        return `<${contentType} body, ${response.headers.get('content-length') ?? 'unknown'} bytes>`;
+    }
+    const body = await response.text();
+    if (body.length <= MAX_ERROR_BODY_LENGTH) {
+        return body;
+    }
+    return `${body.slice(0, MAX_ERROR_BODY_LENGTH)}... (truncated)`;
 }
 
 async function validateServerUrl(serverUrl: string): Promise<void> {
